@@ -30,6 +30,7 @@ moon run common-rpc:generate   # regenerate protos
 moon run common-rpc:protolint  # buf lint
 moon run common-rpc:breaking   # buf breaking vs main
 moon run apps/edge-api:run     # run a service locally (PORT=8080..8085)
+moon run apps/edge-api:dev     # run with air hot-reload (dev)
 moon ci                    # all checks (CI entry point)
 ```
 

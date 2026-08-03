@@ -31,3 +31,10 @@ tasks:
       cache: false
       persistent: true
       runInCI: false
+  # Dev convenience: hot-reload via air (rebuilds + restarts on save).
+  dev:
+    command: 'air'
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
