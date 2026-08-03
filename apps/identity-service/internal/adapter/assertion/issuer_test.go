@@ -20,22 +20,35 @@ func TestIssueCreatesSignedJWT(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	der, err := x509.MarshalPKCS8PrivateKey(privateKey)
+
+	privateDER, err := x509.MarshalPKCS8PrivateKey(privateKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	path := filepath.Join(t.TempDir(), "actor.key")
-	if err := os.WriteFile(path, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}), 0600); err != nil {
+
+	privateKeyFile := filepath.Join(t.TempDir(), "actor.key")
+	privatePEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "PRIVATE KEY",
+		Bytes: privateDER,
+	})
+	if err := os.WriteFile(privateKeyFile, privatePEM, 0600); err != nil {
 		t.Fatal(err)
 	}
-	issuer, err := New(path, "identity-service", time.Minute)
+
+	issuer, err := New(privateKeyFile, "identity-service", time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := issuer.Issue(context.Background(), port.Actor{Subject: "user-123", Email: "user@example.com", Audience: "order-service"})
+
+	token, err := issuer.Issue(context.Background(), port.Actor{
+		Subject:  "user-123",
+		Email:    "user@example.com",
+		Audience: "order-service",
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	if len(strings.Split(token, ".")) != 3 {
 		t.Fatalf("invalid JWT: %q", token)
 	}

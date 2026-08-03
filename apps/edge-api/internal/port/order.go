@@ -7,6 +7,7 @@ type Caller struct {
 	Email   string
 	Service string
 }
+
 type OrderService interface {
 	GetCaller(context.Context, string) (Caller, error)
 }

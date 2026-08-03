@@ -1,14 +1,120 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Implementation Roadmap</title><link rel="stylesheet" href="style.css"></head>
-<body><main><p class="eyebrow">Implementation roadmap</p><h1>One milestone. One proof.</h1>
+<body><main><p class="eyebrow">Implementation roadmap</p><h1>Four phases. One proof at a time.</h1>
 <nav><a href="index.html">Docs home</a><a href="auth.html">Auth guide</a><a href="architecture.html">Architecture reference</a></nav>
-<p class="lead">Do these in order. Do not start Kafka, payment, or another service before the current milestone’s proof passes.</p>
-<section class="step"><h2>0. Foundation — done</h2><p>Workspace modules, Buf contracts, Ory Compose, local CA and workload certificates.</p><pre><code>./deployments/compose/certs/generate.sh
-cd common-rpc && buf generate && buf lint</code></pre><p><strong>Proof:</strong> generated Go code exists and Buf lint passes.</p></section>
-<section class="step"><h2>1. Auth vertical slice — done</h2><p>Client → Edge → Identity → Kratos and Edge → Order. Read <a href="auth.html">the dedicated guide</a> before changing this slice.</p><p><strong>Proof:</strong> `GET /auth/order-caller` returns the authenticated actor only with a valid Kratos session, mTLS Edge certificate, and valid Identity assertion.</p></section>
-<section class="step"><h2>2. Replace demo Order RPC</h2><p>Keep the same interceptor. Add a real `GetOrder` RPC and an Order repository port. In the use case, load the order then require <code>order.CustomerID == actor.UserID</code>. Never put that rule in Edge.</p><p><strong>Definition of done:</strong> owner gets order; different authenticated user gets PermissionDenied; direct non-mTLS caller fails.</p></section>
-<section class="step"><h2>3. Catalog → Order checkout read</h2><p>Add Catalog contract and outbound port in Order. Order calls Catalog synchronously only to obtain sellable product facts, then stores a snapshot.</p><p><strong>Definition of done:</strong> checkout rejects unpublished/missing SKU; accepted order contains immutable item name/price snapshot.</p></section>
-<section class="step"><h2>4. Persistence</h2><p>Add service-owned PostgreSQL repositories and migrations. No cross-service database access. Introduce an outbox in the same transaction as order state changes.</p><p><strong>Definition of done:</strong> restart-safe order state and one durable outbox record per emitted fact.</p></section>
-<section class="step"><h2>5. Inventory, payment, notifications</h2><p>Only now add Kafka commands/events, idempotent consumers, saga states, and compensation. Build one workflow transition at a time.</p><p><strong>Definition of done:</strong> a failed reservation/payment leaves an observable, recoverable order state.</p></section>
-<section><h2>Every change checklist</h2><ol><li>Write/adjust proto first if another service needs the capability.</li><li>Define inbound/outbound port inside the owning service.</li><li>Implement use case; it must not import transport or database package.</li><li>Implement adapter and transport mapping.</li><li>Add unit test near the unit; add integration/E2E test only when a real boundary is crossed.</li><li>Run module tests, race detector, vet, and Buf lint.</li></ol></section>
+<p class="lead">The whole system is built in four phases: <strong>Setup → MVP → Fully implement → Prod</strong>. A phase is not done until its exit criteria pass. Do not start the next phase with unresolved proof from the previous one.</p>
+
+<section><h2>Phase map</h2><table><thead><tr><th>Phase</th><th>Goal</th><th>Result</th></tr></thead><tbody>
+<tr><td>1 · Setup</td><td>Paved road: contracts, infra, tooling, CI.</td><td>Any new service can be generated, run, tested, built.</td></tr>
+<tr><td>2 · MVP</td><td>One real vertical slice end to end: auth + catalog + order with persistence and outbox.</td><td>Buying a product works and survives restart.</td></tr>
+<tr><td>3 · Fully implement</td><td>Complete business behavior: Kafka saga, inventory, payment, notifications, observability, reconciliation.</td><td>Full checkout workflow with durable recovery.</td></tr>
+<tr><td>4 · Prod</td><td>Hardening and controlled go-live: deployment, certificates, secrets, SLOs, backups, runbooks.</td><td>Real transaction can be purchased, refunded, traced, reconciled.</td></tr>
+</tbody></table></section>
+
+<section class="step"><h2>Phase 1 — Setup: the paved road</h2>
+<p><strong>Goal:</strong> one repeatable repository and local environment where a service can be generated, run, observed, tested, and built without inventing new conventions.</p>
+<h3>Steps, in order</h3>
+<ol>
+<li><strong>Repository & workspace</strong> — moon workspace, <code>go.work</code>, shared tasks (<code>build</code>, <code>test</code>, <code>lint</code>, <code>fmt</code>), and initial modules: <code>edge-api</code>, <code>catalog-service</code>, <code>order-service</code>, <code>common-rpc</code>, <code>common-events</code>, observability platform. Status: <span class="ok" style="padding:.15em .5em;border:1px solid var(--ok-rule);background:var(--ok-bg)">done</span></li>
+<li><strong>Contracts</strong> — Buf config, lint + breaking tasks, health/catalog/order protobufs. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">partially done</span> (auth/order identity protos exist; catalog proto pending)</li>
+<li><strong>Infrastructure</strong> — local Compose: PostgreSQL + Kratos (Hydra removed; not needed for first-party flows). Status: <span class="ok" style="padding:.15em .5em;border:1px solid var(--ok-rule);background:var(--ok-bg)">done</span></li>
+<li><strong>Trust material</strong> — <code>deployments/compose/certs/generate.sh</code>: local CA, workload certificates (edge/identity/order), Ed25519 actor keypair. Status: <span class="ok" style="padding:.15em .5em;border:1px solid var(--ok-rule);background:var(--ok-bg)">done</span></li>
+<li><strong>Service conventions</strong> — hexagon layout, logrus/slog JSON, graceful shutdown, readiness, Air config. Status: <span class="ok" style="padding:.15em .5em;border:1px solid var(--ok-rule);background:var(--ok-bg)">done for edge/identity/order</span></li>
+<li><strong>CI</strong> — format, lint, tests, build, Buf checks in one pipeline. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Migrations & seeds</strong> — explicit migration task per service, idempotent seeds. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+</ol>
+<h3>Definition of done</h3>
+<ul class="checklist"><li><code>moon ci</code> passes on a clean checkout.</li>
+<li>Running <code>./deployments/compose/certs/generate.sh</code> then the three services locally yields a working <code>GET /auth/order-caller</code>.</li>
+<li>No service imports another service’s internal packages; only <code>common-rpc</code> is shared.</li></ul>
+<pre><code>./deployments/compose/certs/generate.sh
+cd common-rpc && buf generate && buf lint && go test ./...
+cd apps/edge-api && go test -race ./... && go vet ./...</code></pre>
+</section>
+
+<section class="step"><h2>Phase 2 — MVP: one working vertical slice</h2>
+<p><strong>Goal:</strong> prove the architecture under real behavior: an authenticated user can view a product and place an order that is persisted and emits a durable event.</p>
+<h3>Steps, in order</h3>
+<ol>
+<li><strong>Order real RPCs</strong> — replace the demo <code>GetCaller</code> path with real use cases. Add <code>order.v1</code> RPCs (<code>CreateOrder</code>, <code>GetOrder</code>) and an order repository port. Keep the existing mTLS + assertion interceptor untouched; the use case enforces ownership: <code>order.CustomerID == actor.UserID</code>. Never put that rule in Edge. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">next</span></li>
+<li><strong>Catalog service</strong> — catalog owns products, SKUs, prices, publication state. Public read through Edge (<code>GET /products</code>), gRPC <code>GetProductForOrder</code> for Order. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Order → Catalog checkout read</strong> — Order calls Catalog synchronously to obtain sellable product facts, then stores an immutable snapshot (name, unit price, currency, qty) in the order row. Reject unpublished/missing SKU. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Persistence</strong> — service-owned PostgreSQL repositories and migrations (one DB per service, isolated users). No cross-service DB access. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Outbox</strong> — write outbox records in the same transaction as order state changes; a publisher forwards them to Kafka later. MVP can ship with outbox table + publisher stub behind a port. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Order state machine (no async yet)</strong> — <code>PENDING → CONFIRMED</code> for MVP when payment is out of scope; design states so Phase 3 extends them. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+</ol>
+<h3>Definition of done</h3>
+<ul class="checklist"><li>Registered user can create an order through Edge; the order survives a restart (real DB).</li>
+<li>Different authenticated user gets <code>PermissionDenied</code> on <code>GetOrder</code>; direct non-mTLS caller fails.</li>
+<li>Historical orders do not change when catalog prices change (snapshot invariant).</li>
+<li>Each order state change writes exactly one durable outbox record.</li></ul>
+<pre><code># proto first, then service code
+cd common-rpc && buf generate && buf lint
+# per service
+cd apps/order-service && go test -race ./... && go vet ./...</code></pre>
+</section>
+
+<section class="step"><h2>Phase 3 — Fully implement: complete business behavior</h2>
+<p><strong>Goal:</strong> the full checkout workflow with durable async steps, compensation, and operational visibility.</p>
+<h3>Steps, in order</h3>
+<ol>
+<li><strong>Events & commands</strong> — define <code>common-events</code> contracts: commands (<code>ReserveInventory</code>, <code>CapturePayment</code>) and events (<code>OrderCreated</code>, <code>InventoryReserved</code>, <code>PaymentSucceeded</code>, <code>OrderConfirmed</code>). Versioned protos, keys, consumer groups, deadlines. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Kafka/Redpanda</strong> — local Compose broker, topics, ACLs. Producer = outbox publisher; consumers idempotent. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Saga orchestration in Order</strong> — durable saga state, one transition at a time, timeout-driven compensation. Define ambiguous-payment precedence. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Inventory service</strong> — stock, atomic multi-SKU reservation, reservation expiry, movements, outbox. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Payment service</strong> — provider abstraction (Stripe PaymentIntents), idempotent attempts, webhook verification, reconciliation states. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Notification service</strong> — terminal event consumers, dedup, retries, provider adapter (email/Mailpit). Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Observability</strong> — Prometheus metrics, structured logs with correlation IDs, OTLP tracing to Tempo, Grafana dashboards + alerts. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Idempotency & dedup</strong> — client idempotency keys, provider event dedup, inbox/outbox retention, DLQ + redrive runbooks. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+</ol>
+<h3>Definition of done</h3>
+<ul class="checklist"><li>A failed reservation or payment leaves an observable, recoverable order state — never a silent stuck order.</li>
+<li>Duplicate messages and duplicate webhooks are harmless (idempotent effects).</li>
+<li>An operator can trace one order across Edge, Order, Inventory, Payment, and Notification from a single correlation ID.</li>
+<li>Compensation works: inventory released when payment fails; order marked for reconciliation on ambiguity.</li></ul>
+</section>
+
+<section class="step"><h2>Phase 4 — Prod: hardening and controlled go-live</h2>
+<p><strong>Goal:</strong> promote the verified system through Dokploy without exposing private infrastructure or risking irreversible payment/data errors.</p>
+<h3>Steps, in order</h3>
+<ol>
+<li><strong>Deployment platform</strong> — Dokploy projects/networks/domains/volumes; separate staging and production; managed DB/Kafka decision. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Secrets & configuration</strong> — inject via secrets manager/env; never commit <code>properties.yaml</code>, private keys, or certs. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Workload identity & certificates</strong> — replace static dev certs with short-lived certificates and rotation (SPIFFE/SPIRE or a private CA with rotation jobs). Keep per-RPC caller ACLs. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Service hardening</strong> — TLS 1.3 everywhere, bounded timeouts, readiness probes, resource limits, no admin ports exposed. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Browser session hardening</strong> — Kratos session as <code>HttpOnly</code>/<code>Secure</code>/<code>SameSite</code> cookie instead of bearer token in JS. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Backups & restore</strong> — automated PostgreSQL backups, tested restore, retention policy (RPO ≤ 15 min, RTO ≤ 4 h initially). Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>SLOs & alerts</strong> — baseline SLIs, error budgets, burn-rate alerts, dashboards; confirm targets with product. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Go-live sequence</strong> — staging smoke → expand migrations → consumers before producers → internal services → Edge → synthetic checkout → Stripe test/live → low-volume real transaction → observe/reconcile → gradual traffic. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+<li><strong>Runbooks & on-call</strong> — stuck order, provider ambiguity, inventory divergence, DLQ record, telemetry outage; incident ownership. Status: <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span></li>
+</ol>
+<h3>Definition of done</h3>
+<ul class="checklist"><li>A real low-value transaction can be purchased, refunded, observed, reconciled, and audited.</li>
+<li>Rollback never requires reversing a destructive migration.</li>
+<li>On-call can diagnose every failure class above within the SLO budget.</li>
+<li>Certificate/key rotation is exercised and tested, not improvised.</li></ul>
+<pre><code># release sequence
+backup/restore proof
+  → expand migrations
+  → compatible consumers
+  → internal services
+  → edge-api
+  → synthetic checkout
+  → Stripe/webhook verification
+  → low-volume real transaction
+  → observe and reconcile
+  → gradual traffic increase</code></pre>
+</section>
+
+<section><h2>Every change checklist</h2><ol>
+<li>Write/adjust the proto first if another service needs the capability.</li>
+<li>Define inbound/outbound port inside the owning service.</li>
+<li>Implement the use case; it must not import transport or database packages.</li>
+<li>Implement the adapter and the transport mapping.</li>
+<li>Add a unit test near the unit; add integration/E2E tests only when a real boundary is crossed.</li>
+<li>Run module tests, race detector, vet, and Buf lint.</li>
+<li>Update <code>docs/*</code> if the change alters a documented contract or flow.</li>
+</ol></section>
+
+<section><h2>Status legend</h2><p><span style="padding:.15em .5em;border:1px solid var(--ok-rule);background:var(--ok-bg)">done</span> implemented and verified &nbsp;·&nbsp; <span style="padding:.15em .5em;border:1px solid var(--rule-strong)">pending</span> not started &nbsp;·&nbsp; <span style="padding:.15em .5em;border:1px solid #b8a03c;background:var(--warn-bg)">partial</span> in progress</p></section>
 </main></body></html>

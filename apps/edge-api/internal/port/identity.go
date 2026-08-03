@@ -6,14 +6,17 @@ type User struct {
 	ID    string
 	Email string
 }
+
 type Authentication struct {
 	User         User
 	SessionToken string
 }
+
 type Session struct {
 	User           User
 	ActorAssertion string
 }
+
 type IdentityService interface {
 	Register(context.Context, string, string) (Authentication, error)
 	Login(context.Context, string, string) (Authentication, error)

@@ -26,6 +26,7 @@ type GRPC struct {
 type Kratos struct {
 	PublicURL string `mapstructure:"public_url"`
 }
+
 type Actor struct {
 	Issuer         string `mapstructure:"issuer"`
 	PrivateKeyFile string `mapstructure:"private_key_file"`
@@ -37,27 +38,35 @@ func Load() (Config, error) {
 	v.SetConfigFile(configPath())
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	v.AutomaticEnv()
+
 	v.SetDefault("grpc.port", "9081")
 	v.SetDefault("grpc.tls_cert_file", "../../deployments/compose/certs/identity-service.crt")
 	v.SetDefault("grpc.tls_key_file", "../../deployments/compose/certs/identity-service.key")
 	v.SetDefault("grpc.tls_ca_file", "../../deployments/compose/certs/ca.crt")
 	v.SetDefault("grpc.trusted_caller", "edge-api.internal")
+
 	v.SetDefault("kratos.public_url", "http://localhost:4433")
+
 	v.SetDefault("actor.issuer", "identity-service")
 	v.SetDefault("actor.private_key_file", "../../deployments/compose/certs/identity-actor.key")
 	v.SetDefault("actor.ttl_seconds", 60)
+
 	if err := v.ReadInConfig(); err != nil {
 		return Config{}, fmt.Errorf("read config: %w", err)
 	}
+
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return Config{}, fmt.Errorf("unmarshal config: %w", err)
 	}
+
 	return cfg, nil
 }
+
 func configPath() string {
 	if path := os.Getenv("CONFIG_PATH"); path != "" {
 		return path
 	}
+
 	return "properties.yaml"
 }

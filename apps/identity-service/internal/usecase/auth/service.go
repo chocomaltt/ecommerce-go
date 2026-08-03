@@ -18,58 +18,80 @@ type User struct {
 	ID    string
 	Email string
 }
+
 type Service struct {
 	kratos     port.KratosService
 	assertions port.ActorIssuer
 }
 
 func New(kratos port.KratosService, assertions port.ActorIssuer) *Service {
-	return &Service{kratos: kratos, assertions: assertions}
+	return &Service{
+		kratos:     kratos,
+		assertions: assertions,
+	}
 }
+
 func (s *Service) Register(ctx context.Context, email, password string) (User, string, error) {
 	if err := s.kratos.Register(ctx, email, password); err != nil {
 		return User{}, "", err
 	}
+
 	return s.Login(ctx, email, password)
 }
+
 func (s *Service) Login(ctx context.Context, email, password string) (User, string, error) {
 	token, err := s.kratos.Login(ctx, email, password)
 	if err != nil {
 		return User{}, "", ErrInvalidCredentials
 	}
+
 	user, err := s.resolve(ctx, token)
 	if err != nil {
 		return User{}, "", err
 	}
+
 	return user, token, nil
 }
+
 func (s *Service) ResolveSession(ctx context.Context, token, audience string) (User, string, error) {
 	if token == "" || audience == "" {
 		return User{}, "", ErrInvalidRequest
 	}
+
 	user, err := s.resolve(ctx, token)
 	if err != nil {
 		return User{}, "", err
 	}
-	assertion, err := s.assertions.Issue(ctx, port.Actor{Subject: user.ID, Email: user.Email, Audience: audience})
+
+	assertion, err := s.assertions.Issue(ctx, port.Actor{
+		Subject:  user.ID,
+		Email:    user.Email,
+		Audience: audience,
+	})
 	if err != nil {
 		return User{}, "", err
 	}
+
 	return user, assertion, nil
 }
+
 func (s *Service) Logout(ctx context.Context, token string) error {
 	if token == "" {
 		return ErrInvalidRequest
 	}
+
 	if err := s.kratos.Logout(ctx, token); err != nil {
 		return ErrInvalidSession
 	}
+
 	return nil
 }
+
 func (s *Service) resolve(ctx context.Context, token string) (User, error) {
 	id, email, err := s.kratos.Whoami(ctx, token)
 	if err != nil {
 		return User{}, ErrInvalidSession
 	}
+
 	return User{ID: id, Email: email}, nil
 }
