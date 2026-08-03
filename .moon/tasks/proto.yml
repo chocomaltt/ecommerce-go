@@ -1,0 +1,27 @@
+# Tasks inherited by projects tagged `proto` (common-rpc, common-events).
+# buf + protoc plugins come from the go toolchain's `bins`, so tasks run
+# under the default (go) toolchain — no `toolchain: system` needed.
+inheritedBy:
+  tags:
+    - proto
+
+tasks:
+  generate:
+    command: 'buf generate'
+    inputs:
+      - 'proto/**/*'
+      - 'buf.yaml'
+      - 'buf.gen.yaml'
+    outputs:
+      - 'gen/**/*'
+  protolint:
+    command: 'buf lint'
+    inputs:
+      - 'proto/**/*'
+      - 'buf.yaml'
+  breaking:
+    # .git is at the workspace root; subdir points buf at this project's module.
+    command: 'buf breaking --against "${MOON_WORKSPACE_ROOT}/.git#branch=main,subdir=${MOON_PROJECT_SOURCE}"'
+    inputs:
+      - 'proto/**/*'
+      - 'buf.yaml'

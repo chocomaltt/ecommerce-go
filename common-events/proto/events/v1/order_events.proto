@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package events.v1;
+
+option go_package = "github.com/chocomaltt/ecommerce-go/common-events/gen/events/v1;eventsv1";
+
+// Published when an order is placed.
+message OrderCreated {
+  string order_id = 1;
+  string customer_id = 2;
+  repeated string product_ids = 3;
+  int64 total_amount = 4;
+  string currency = 5;
+}
+
+// Published when an order transitions between statuses.
+message OrderStatusChanged {
+  string order_id = 1;
+  string from_status = 2;
+  string to_status = 3;
+}

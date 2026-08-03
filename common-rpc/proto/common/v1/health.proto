@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package common.v1;
+
+option go_package = "github.com/chocomaltt/ecommerce-go/common-rpc/gen/common/v1;commonv1";
+
+// Health check shared by all services.
+message HealthServiceCheckRequest {
+  string service = 1;
+}
+
+message HealthServiceCheckResponse {
+  string status = 1;
+}
+
+service HealthService {
+  rpc Check(HealthServiceCheckRequest) returns (HealthServiceCheckResponse);
+}

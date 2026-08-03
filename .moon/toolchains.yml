@@ -1,0 +1,16 @@
+# Enables the Go toolchain (moon v2, full Tier 3 support).
+# No version pin = uses the system `go` binary. Pin `version` or add
+# a `.prototools` file when you want a deterministic toolchain across
+# machines/CI.
+go:
+  # Parse go.work / go.work.sum at the workspace root.
+  workspaces: true
+  # Infer project relationships from go list --deps (cross-module deps).
+  inferRelationships: true
+  inferRelationshipsFromTests: true
+  # Tools installed via `go install`, available to all go-toolchain tasks.
+  bins:
+    - 'github.com/air-verse/air@v1.67.4'
+    - 'github.com/bufbuild/buf/cmd/buf@v1.57.0'
+    - 'google.golang.org/protobuf/cmd/protoc-gen-go@v1.36.11'
+    - 'google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.6.2'

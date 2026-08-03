@@ -1,0 +1,10 @@
+# moon
+.moon/cache
+.moon/docker
+
+# Go build outputs (go build ./... in a single-main module)
+apps/*/edge-api
+apps/*/*-service
+
+# air tmp build dir
+apps/*/tmp
