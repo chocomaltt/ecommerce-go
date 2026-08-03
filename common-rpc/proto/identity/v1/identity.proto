@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package identity.v1;
+
+option go_package = "github.com/chocomaltt/ecommerce-go/common-rpc/gen/identity/v1;identityv1";
+
+message User {
+  string id = 1;
+  string email = 2;
+}
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message RegisterResponse {
+  User user = 1;
+  string session_token = 2;
+}
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  User user = 1;
+  string session_token = 2;
+}
+
+message ResolveSessionRequest {
+  string session_token = 1;
+  string audience = 2;
+}
+
+message ResolveSessionResponse {
+  User user = 1;
+  string actor_assertion = 2;
+}
+
+message LogoutRequest {
+  string session_token = 1;
+}
+
+message LogoutResponse {}
+
+message HydraLoginRequest {
+  string challenge = 1;
+  string session_token = 2;
+}
+
+message HydraLoginResponse {
+  string redirect_url = 1;
+}
+
+message HydraConsentRequest {
+  string challenge = 1;
+}
+
+message HydraConsentResponse {
+  string redirect_url = 1;
+}
+
+message HydraLogoutRequest {
+  string challenge = 1;
+}
+
+message HydraLogoutResponse {
+  string redirect_url = 1;
+}
+
+service IdentityService {
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc ResolveSession(ResolveSessionRequest) returns (ResolveSessionResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc HydraLogin(HydraLoginRequest) returns (HydraLoginResponse);
+  rpc HydraConsent(HydraConsentRequest) returns (HydraConsentResponse);
+  rpc HydraLogout(HydraLogoutRequest) returns (HydraLogoutResponse);
+}

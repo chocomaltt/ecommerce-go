@@ -1,0 +1,10 @@
+meta {
+  name: OIDC Discovery
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{hydraPublic}}/.well-known/openid-configuration
+  auth: none
+}

@@ -34,6 +34,37 @@ moon run apps/edge-api:dev     # run with air hot-reload (dev)
 moon ci                    # all checks (CI entry point)
 ```
 
+## Secure auth example: Edge → Identity → Order
+
+The protected `GET /auth/order-caller` route proves the complete trust chain:
+
+1. Edge calls private `identity-service.ResolveSession` using TLS 1.3 mTLS.
+2. Identity resolves the Kratos session and signs a 60-second Ed25519 actor assertion for `order-service`.
+3. Edge calls Order using a separate mTLS connection and forwards only that assertion.
+4. Order accepts only `edge-api.internal`, verifies assertion signature/issuer/audience/expiry, then exposes actor context to its use case.
+
+```sh
+# one-time local development keys and workload certificates (ignored by git)
+./deployments/compose/certs/generate.sh
+cp apps/identity-service/properties.example.yaml apps/identity-service/properties.yaml
+
+# Ory must already be running
+# terminal 1
+cd apps/identity-service && go run ./cmd/identity-service
+
+# terminal 2
+cd apps/order-service && go run ./cmd/order-service
+
+# terminal 3
+cd apps/edge-api && go run ./cmd/edge-api
+
+# use the session_token returned by POST /auth/login
+curl -H 'Authorization: Bearer <session_token>' \
+  http://localhost:8080/auth/order-caller
+```
+
+Ports/adapters: `common-rpc/proto/{identity,order}/v1`, `apps/identity-service/internal`, `apps/edge-api/internal/{port,adapter}`, and `apps/order-service/internal`.
+
 ## Tooling
 
 - Go toolchain is enabled in `.moon/toolchains.yml` (workspaces on, `go.work` aware).

@@ -1,0 +1,17 @@
+server:
+  port: 8080
+  log_level: info
+
+identity:
+  grpc_target: localhost:9081
+  tls_server_name: identity-service.internal
+  tls_cert_file: ../../deployments/compose/certs/edge-api.crt
+  tls_key_file: ../../deployments/compose/certs/edge-api.key
+  tls_ca_file: ../../deployments/compose/certs/ca.crt
+
+order:
+  grpc_target: localhost:9082
+  tls_server_name: order-service.internal
+  tls_cert_file: ../../deployments/compose/certs/edge-api.crt
+  tls_key_file: ../../deployments/compose/certs/edge-api.key
+  tls_ca_file: ../../deployments/compose/certs/ca.crt

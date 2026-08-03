@@ -8,3 +8,13 @@ apps/*/*-service
 
 # air tmp build dir
 apps/*/tmp
+
+# local service config (commit the .example template instead)
+apps/*/properties.yaml
+
+# local development CA and workload certificates
+# Certificate public keys are generated locally too; only the generator is committed.
+deployments/compose/certs/*.crt
+deployments/compose/certs/*.key
+deployments/compose/certs/*.pub
+deployments/compose/certs/*.srl

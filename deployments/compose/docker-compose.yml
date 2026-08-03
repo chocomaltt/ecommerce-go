@@ -1,0 +1,61 @@
+# Local development infrastructure: PostgreSQL + Ory Hydra (OAuth2/OIDC) + Ory Kratos (users).
+# identity-service owns Ory orchestration; Edge and all app services run separately
+# during local development and communicate with it through private mTLS gRPC.
+
+services:
+  postgres:
+    image: postgres:17.10-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -d ecommerce -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    volumes:
+      - postgres-data:/var/lib/postgresql/data:rw
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+
+  hydra:
+    image: oryd/hydra:v26.2.0
+    restart: unless-stopped
+    entrypoint: ["sh", "-c"]
+    command:
+      - hydra migrate sql "postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable" --yes && hydra serve all -c /etc/config/hydra/hydra.yml --dev
+    ports:
+      - "4444:4444" # public: OAuth2 endpoints
+      - "4445:4445" # admin: client/introspection API
+    volumes:
+      - ./hydra:/etc/config/hydra
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # edge-api runs on the host -> reachable from containers
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  kratos:
+    image: oryd/kratos:v26.2.0
+    restart: unless-stopped
+    entrypoint: ["sh", "-c"]
+    command:
+      - kratos migrate sql "postgres://postgres:postgres@postgres:5432/kratos?sslmode=disable" --yes && kratos serve -c /etc/config/kratos/kratos.yml
+    ports:
+      - "4433:4433" # public: self-service flows
+      - "4434:4434" # admin: identity CRUD
+    volumes:
+      - ./kratos:/etc/config/kratos
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:
