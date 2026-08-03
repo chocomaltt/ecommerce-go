@@ -1,0 +1,25 @@
+meta {
+  name: Register
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{email}}",
+    "password": "{{password}}"
+  }
+}
+
+script.post-response {
+  const data = res.getBody();
+  if (data && data.session_token) {
+    bru.setVar("sessionToken", data.session_token);
+  }
+}

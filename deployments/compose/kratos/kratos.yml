@@ -1,0 +1,61 @@
+version: v1.3.1
+
+dsn: postgres://postgres:postgres@postgres:5432/kratos?sslmode=disable
+
+serve:
+  public:
+    base_url: http://localhost:4433/
+  admin:
+    base_url: http://localhost:4434/
+
+identity:
+  default_schema_id: default
+  schemas:
+    - id: default
+      url: file:///etc/config/kratos/identity.schema.json
+
+selfservice:
+  default_browser_return_url: http://localhost:8080
+  methods:
+    password:
+      enabled: true
+    totp:
+      enabled: false
+    webauthn:
+      enabled: false
+    link:
+      enabled: false
+    code:
+      enabled: false
+  flows:
+    error:
+      ui_url: http://localhost:8080/error
+    login:
+      lifespan: 10m
+    registration:
+      lifespan: 10m
+    settings:
+      lifespan: 10m
+    recovery:
+      lifespan: 10m
+    verification:
+      lifespan: 10m
+
+log:
+  level: info
+
+secrets:
+  cookie:
+    - 0123456789abcdef0123456789abcdef
+  cipher:
+    - fedcba9876543210fedcba9876543210
+
+session:
+  lifespan: 24h
+  cookie:
+    persistent: true
+
+courier:
+  smtp:
+    # No real mail in local dev; errors are logged only.
+    connection_uri: smtps://dev:dev@localhost:1025/?skip_ssl_verify=true

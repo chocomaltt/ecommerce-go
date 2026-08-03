@@ -1,0 +1,15 @@
+server:
+  port: 8080
+  log_level: info
+
+kratos:
+  public_url: http://localhost:4433
+  admin_url: http://localhost:4434
+
+hydra:
+  public_url: http://localhost:4444
+  admin_url: http://localhost:4445
+  client_id: edge-api
+  client_secret: change-me
+  redirect_uris:
+    - http://localhost:8080/auth/callback
