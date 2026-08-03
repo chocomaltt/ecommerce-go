@@ -1,0 +1,21 @@
+grpc:
+  port: 9081
+  tls_cert_file: ../../deployments/compose/certs/identity-service.crt
+  tls_key_file: ../../deployments/compose/certs/identity-service.key
+  tls_ca_file: ../../deployments/compose/certs/ca.crt
+  trusted_caller: edge-api.internal
+
+kratos:
+  public_url: http://localhost:4433
+
+hydra:
+  admin_url: http://localhost:4445
+  client_id: edge-api
+  client_secret: change-me
+  redirect_uris:
+    - http://localhost:8080/auth/callback
+
+actor:
+  issuer: identity-service
+  private_key_file: ../../deployments/compose/certs/identity-actor.key
+  ttl_seconds: 60

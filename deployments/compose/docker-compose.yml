@@ -1,6 +1,6 @@
-# Local dev infrastructure: PostgreSQL + Ory Hydra (OAuth2/OIDC) + Ory Kratos (users).
-# Headless: no login UI — edge-api drives Kratos via API and implements Hydra's
-# login/consent handlers.
+# Local development infrastructure: PostgreSQL + Ory Hydra (OAuth2/OIDC) + Ory Kratos (users).
+# identity-service owns Ory orchestration; Edge and all app services run separately
+# during local development and communicate with it through private mTLS gRPC.
 
 services:
   postgres:

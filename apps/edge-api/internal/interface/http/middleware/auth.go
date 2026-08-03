@@ -3,55 +3,53 @@ package middleware
 import (
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/sirupsen/logrus"
-
 	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/interface/http/response"
 	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/port"
-	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/usecase/auth"
+	"github.com/gin-gonic/gin"
 )
 
-// AuthMiddleware validates Kratos session tokens for protected endpoints.
+const sessionKey = "session"
+
 type AuthMiddleware struct {
-	kratos port.KratosService
+	identity port.IdentityService
+	audience string
 }
 
-func NewAuthMiddleware(kratos port.KratosService) *AuthMiddleware {
-	return &AuthMiddleware{kratos: kratos}
+func NewAuthMiddleware(identity port.IdentityService, audience string) *AuthMiddleware {
+	return &AuthMiddleware{identity: identity, audience: audience}
 }
-
-// EnsureAuthenticated resolves the Bearer token against Kratos and stores the
-// identity in the context as "user".
 func (m *AuthMiddleware) EnsureAuthenticated() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			logrus.Warn("no auth header")
-			response.Unauthorized(c, "unauthorized", auth.ErrNotAuthenticated)
+		token, ok := bearer(c.GetHeader("Authorization"))
+		if !ok {
+			response.Unauthorized(c, "unauthorized", nil)
 			c.Abort()
 			return
 		}
-
-		parts := strings.Split(authHeader, "Bearer ")
-		if len(parts) != 2 {
-			logrus.Warn("invalid auth header")
-			response.Unauthorized(c, "unauthorized", auth.ErrInvalidSession)
-			c.Abort()
-			return
-		}
-
-		token := strings.TrimSpace(parts[1])
-
-		id, email, err := m.kratos.Whoami(c.Request.Context(), token)
+		session, err := m.identity.ResolveSession(c.Request.Context(), token, m.audience)
 		if err != nil {
-			logrus.WithError(err).Warn("invalid session token")
-			response.Unauthorized(c, "unauthorized", auth.ErrInvalidSession)
+			response.Unauthorized(c, "unauthorized", nil)
 			c.Abort()
 			return
 		}
-
-		c.Set("user", &auth.User{ID: id, Email: email})
-		c.Set("accessToken", token)
+		c.Set(sessionKey, session)
 		c.Next()
 	}
+}
+func Session(c *gin.Context) (port.Session, bool) {
+	value, ok := c.Get(sessionKey)
+	if !ok {
+		return port.Session{}, false
+	}
+	session, ok := value.(port.Session)
+	return session, ok
+}
+func Token(c *gin.Context) (string, bool) { return bearer(c.GetHeader("Authorization")) }
+func bearer(header string) (string, bool) {
+	fields := strings.Fields(header)
+	returnValue := ""
+	if len(fields) == 2 && strings.EqualFold(fields[0], "Bearer") {
+		returnValue = fields[1]
+	}
+	return returnValue, returnValue != ""
 }

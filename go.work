@@ -3,6 +3,7 @@ go 1.26.4
 use (
 	./apps/catalog-service
 	./apps/edge-api
+	./apps/identity-service
 	./apps/inventory-service
 	./apps/notification-service
 	./apps/order-service

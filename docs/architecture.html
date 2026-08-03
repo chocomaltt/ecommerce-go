@@ -1,0 +1,1863 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A detailed architecture plan for a Go ecommerce microservices platform using Gin, gRPC, PostgreSQL, Kafka, Moonrepo, Air, Dokploy, Traefik, Prometheus, Grafana, and Loki.">
+  <title>Ecommerce Platform — Architecture Field Guide</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f6f1e7;
+      --paper-deep: #eee6d8;
+      --ink: #26251f;
+      --muted: #6b685e;
+      --faint: #989284;
+      --line: #cec4b2;
+      --accent: #9d3d2f;
+      --accent-dark: #71291f;
+      --green: #365f48;
+      --blue: #355c70;
+      --code: #ebe3d5;
+      --max: 1380px;
+      --text: 720px;
+      --margin: 330px;
+      --serif: "ETBembo", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+      --sans: "Avenir Next", Avenir, "Segoe UI", Helvetica, sans-serif;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        linear-gradient(rgba(94, 73, 44, .025) 1px, transparent 1px),
+        var(--paper);
+      background-size: 100% 28px;
+      font-family: var(--serif);
+      font-size: 18px;
+      line-height: 1.62;
+      text-rendering: optimizeLegibility;
+    }
+
+    a { color: var(--accent-dark); text-underline-offset: .17em; }
+    a:hover { color: var(--accent); }
+    ::selection { background: #d9c29d; color: var(--ink); }
+
+    .page {
+      width: min(calc(100% - 40px), var(--max));
+      margin: 0 auto;
+      padding: 0 0 9rem;
+    }
+
+    header {
+      position: relative;
+      min-height: 76vh;
+      display: grid;
+      grid-template-columns: minmax(0, var(--text)) minmax(220px, var(--margin));
+      gap: clamp(3rem, 8vw, 8rem);
+      align-items: end;
+      padding: clamp(5rem, 12vw, 11rem) 0 5rem;
+      border-bottom: 1px solid var(--ink);
+    }
+
+    .kicker, .eyebrow {
+      margin: 0 0 1.2rem;
+      font: 600 .72rem/1.3 var(--sans);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    h1, h2, h3, h4 { font-weight: 400; }
+    h1 {
+      max-width: 760px;
+      margin: 0;
+      font-size: clamp(3.25rem, 8vw, 7.3rem);
+      line-height: .91;
+      letter-spacing: -.055em;
+    }
+    .subtitle {
+      max-width: 650px;
+      margin: 2rem 0 0;
+      font-size: clamp(1.15rem, 2vw, 1.45rem);
+      line-height: 1.45;
+      font-style: italic;
+      color: var(--muted);
+    }
+    .edition {
+      align-self: end;
+      padding-bottom: .55rem;
+      color: var(--muted);
+      font-size: .92rem;
+    }
+    .edition strong {
+      display: block;
+      margin-bottom: .45rem;
+      color: var(--ink);
+      font: 600 .72rem/1.3 var(--sans);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .toc {
+      display: grid;
+      grid-template-columns: minmax(0, var(--text)) minmax(220px, var(--margin));
+      gap: clamp(3rem, 8vw, 8rem);
+      padding: 3rem 0 4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .toc ol {
+      margin: 1.5rem 0 0;
+      padding: 0;
+      columns: 2;
+      column-gap: 3rem;
+      list-style: none;
+      counter-reset: toc;
+    }
+    .toc li {
+      counter-increment: toc;
+      break-inside: avoid;
+      margin: 0 0 .65rem;
+      font-size: .95rem;
+    }
+    .toc li::before {
+      content: counter(toc, decimal-leading-zero) " ";
+      margin-right: .5rem;
+      font: .72rem var(--mono);
+      color: var(--faint);
+    }
+    .toc a { color: var(--ink); text-decoration: none; }
+    .toc a:hover { color: var(--accent); }
+
+    main { padding-top: 2rem; }
+    section {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, var(--text)) minmax(220px, var(--margin));
+      gap: clamp(3rem, 8vw, 8rem);
+      padding: 5.5rem 0 1rem;
+    }
+    .content { grid-column: 1; min-width: 0; }
+    .margin-column { grid-column: 2; color: var(--muted); }
+
+    h2 {
+      margin: 0 0 2.2rem;
+      font-size: clamp(2.3rem, 5vw, 4.4rem);
+      line-height: 1;
+      letter-spacing: -.04em;
+    }
+    h2 .number {
+      display: block;
+      margin-bottom: .75rem;
+      font: .72rem/1 var(--mono);
+      letter-spacing: .16em;
+      color: var(--accent);
+    }
+    h3 {
+      margin: 3.2rem 0 1rem;
+      font-size: 1.65rem;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+    }
+    h4 {
+      margin: 2rem 0 .65rem;
+      font: 650 .8rem/1.3 var(--sans);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+    p { margin: 1rem 0; }
+    .lead {
+      margin: 0 0 2rem;
+      font-size: 1.28rem;
+      line-height: 1.5;
+    }
+    .dropcap::first-letter {
+      float: left;
+      margin: .08em .09em 0 0;
+      font-size: 4.6rem;
+      line-height: .75;
+      color: var(--accent);
+    }
+
+    .sidenote, .margin-note {
+      display: block;
+      margin: 0 0 2.3rem;
+      padding-top: .6rem;
+      border-top: 1px solid var(--line);
+      font-size: .86rem;
+      line-height: 1.48;
+    }
+    .sidenote .mark {
+      font: .68rem var(--mono);
+      color: var(--accent);
+      vertical-align: super;
+    }
+
+    blockquote {
+      margin: 2.5rem 0;
+      padding: .3rem 0 .3rem 1.8rem;
+      border-left: 2px solid var(--accent);
+      font-size: 1.28rem;
+      font-style: italic;
+      line-height: 1.45;
+    }
+    blockquote footer {
+      margin-top: .8rem;
+      font: .74rem var(--sans);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    code { font: .84em var(--mono); background: var(--code); padding: .08em .25em; }
+    pre {
+      overflow-x: auto;
+      margin: 1.8rem 0;
+      padding: 1.3rem 1.45rem;
+      border: 1px solid var(--line);
+      background: var(--code);
+      font: .77rem/1.55 var(--mono);
+      tab-size: 2;
+    }
+    pre code { padding: 0; background: transparent; }
+
+    .figure {
+      grid-column: 1 / -1;
+      margin: 2.5rem 0 1.5rem;
+      padding: clamp(1rem, 3vw, 2.2rem);
+      border-top: 1px solid var(--ink);
+      border-bottom: 1px solid var(--ink);
+      background: rgba(255,255,255,.18);
+    }
+    figcaption, .caption {
+      margin-top: 1rem;
+      max-width: 820px;
+      font-size: .82rem;
+      line-height: 1.45;
+      color: var(--muted);
+    }
+    .figure-number {
+      font: .7rem var(--mono);
+      color: var(--accent);
+      margin-right: .5rem;
+    }
+
+    .architecture {
+      display: grid;
+      gap: 1rem;
+      font-family: var(--sans);
+      font-size: .78rem;
+    }
+    .arch-row {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: .65rem;
+      align-items: stretch;
+    }
+    .node {
+      position: relative;
+      min-height: 72px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: .85rem;
+      border: 1px solid var(--ink);
+      background: var(--paper);
+    }
+    .node strong { font-size: .86rem; font-weight: 650; }
+    .node small { margin-top: .25rem; color: var(--muted); line-height: 1.35; }
+    .node.public { background: #efe2d5; border-color: var(--accent-dark); }
+    .node.sync { background: #e4ece8; border-color: var(--green); }
+    .node.async { background: #e4eaed; border-color: var(--blue); }
+    .node.data { background: #ebe5d7; border-style: dashed; }
+    .span-2 { grid-column: span 2; }
+    .span-3 { grid-column: span 3; }
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-12 { grid-column: span 12; }
+    .center-4 { grid-column: 5 / span 4; }
+    .center-6 { grid-column: 4 / span 6; }
+
+    .connector {
+      grid-column: 1 / -1;
+      text-align: center;
+      color: var(--faint);
+      font: .72rem/1 var(--mono);
+      letter-spacing: .08em;
+    }
+
+    table {
+      width: 100%;
+      margin: 1.8rem 0;
+      border-collapse: collapse;
+      font-size: .9rem;
+    }
+    th, td {
+      padding: .7rem .55rem;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      font: 650 .68rem/1.3 var(--sans);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    ul, ol { padding-left: 1.35rem; }
+    li { margin: .42rem 0; }
+    .checklist { list-style: none; padding: 0; }
+    .checklist li { position: relative; padding-left: 1.55rem; }
+    .checklist li::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: .58em;
+      width: .55rem;
+      height: .55rem;
+      border: 1px solid var(--accent);
+    }
+
+    .rule {
+      display: grid;
+      grid-template-columns: 2.2rem 1fr;
+      gap: .9rem;
+      margin: 1.1rem 0;
+    }
+    .rule b {
+      padding-top: .18rem;
+      font: .72rem var(--mono);
+      color: var(--accent);
+    }
+    .rule p { margin: 0; }
+
+    .state-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: .55rem;
+      align-items: center;
+      margin: 1.8rem 0;
+      font: .74rem var(--mono);
+    }
+    .state {
+      padding: .45rem .65rem;
+      border: 1px solid var(--ink);
+      background: rgba(255,255,255,.2);
+    }
+    .arrow { color: var(--faint); }
+
+    .phase {
+      display: grid;
+      grid-template-columns: 4.5rem 1fr;
+      gap: 1.2rem;
+      padding: 1.4rem 0;
+      border-top: 1px solid var(--line);
+    }
+    .phase:last-child { border-bottom: 1px solid var(--line); }
+    .phase-id {
+      font: .72rem/1.3 var(--mono);
+      color: var(--accent);
+    }
+    .phase h3 { margin: 0 0 .45rem; font-size: 1.22rem; }
+    .phase p { margin: .35rem 0; }
+
+    .callout {
+      margin: 2rem 0;
+      padding: 1.25rem 1.4rem;
+      border: 1px solid var(--accent-dark);
+      background: #efe2d5;
+    }
+    .callout strong {
+      display: block;
+      margin-bottom: .4rem;
+      font: 650 .72rem var(--sans);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--accent-dark);
+    }
+
+    .small { font-size: .88rem; color: var(--muted); }
+    .nowrap { white-space: nowrap; }
+    hr { border: 0; border-top: 1px solid var(--line); margin: 4rem 0; }
+
+    .footer {
+      display: grid;
+      grid-template-columns: minmax(0, var(--text)) minmax(220px, var(--margin));
+      gap: clamp(3rem, 8vw, 8rem);
+      margin-top: 7rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--ink);
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
+    @media (max-width: 980px) {
+      header, .toc, section, .footer { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+      .margin-column, .edition { grid-column: 1; }
+      .margin-column { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.2rem; }
+      header { min-height: auto; }
+      .arch-row { grid-template-columns: repeat(6, 1fr); }
+      .span-2, .span-3, .span-4, .span-6, .center-4, .center-6 { grid-column: span 3; }
+      .span-12 { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 640px) {
+      body { font-size: 17px; }
+      .page { width: min(calc(100% - 28px), var(--max)); }
+      header { padding-top: 4rem; }
+      h1 { font-size: clamp(3rem, 17vw, 5rem); }
+      .toc ol { columns: 1; }
+      section { padding-top: 4rem; }
+      .margin-column { grid-template-columns: 1fr; }
+      .arch-row { display: block; }
+      .node { margin-bottom: .65rem; }
+      .connector { margin: .8rem 0; }
+      .phase { grid-template-columns: 3rem 1fr; }
+      table { display: block; overflow-x: auto; }
+    }
+
+    @media print {
+      body { background: #fff; font-size: 11pt; }
+      .page { width: 100%; max-width: none; padding: 0; }
+      header { min-height: auto; padding-top: 2cm; }
+      section { break-before: page; }
+      a { color: inherit; text-decoration: none; }
+      .figure, pre, table { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav aria-label="Documentation"><a href="index.html">Docs home</a> · <a href="implementation.html">Implementation roadmap</a> · <a href="auth.html">Authentication guide</a></nav>
+    <header>
+      <div>
+        <p class="kicker">Architecture Field Guide · Go Ecommerce</p>
+        <h1>Commerce as a system of promises.</h1>
+        <p class="subtitle">A detailed plan for a Go microservices platform where orders, stock, payments, messages, and operational evidence remain understandable—even when the network does not.</p>
+      </div>
+      <aside class="edition">
+        <strong>Working edition</strong>
+        Monorepo · Moonrepo · Go · Gin · gRPC · PostgreSQL · Kafka · Air · Dokploy · Traefik · Prometheus · Grafana · Loki
+      </aside>
+    </header>
+
+    <nav class="toc" aria-label="Table of contents">
+      <div>
+        <p class="eyebrow">Contents</p>
+        <ol>
+          <li><a href="#thesis">Architectural thesis</a></li>
+          <li><a href="#landscape">System landscape</a></li>
+          <li><a href="#boundaries">Service boundaries</a></li>
+          <li><a href="#hexagonal">Hexagonal service anatomy</a></li>
+          <li><a href="#checkout">Checkout saga</a></li>
+          <li><a href="#events">Kafka and event contracts</a></li>
+          <li><a href="#outbox">Outbox and idempotency</a></li>
+          <li><a href="#data">PostgreSQL ownership</a></li>
+          <li><a href="#observability">Observability platform</a></li>
+          <li><a href="#reliability">Reliability and failure policy</a></li>
+          <li><a href="#security">Security model</a></li>
+          <li><a href="#monorepo">Monorepo and Moonrepo</a></li>
+          <li><a href="#development">Local development with Air</a></li>
+          <li><a href="#deployment">Dokploy and Traefik</a></li>
+          <li><a href="#testing">Verification strategy</a></li>
+          <li><a href="#delivery">Delivery roadmap</a></li>
+          <li><a href="#decisions">Decision register</a></li>
+        </ol>
+      </div>
+      <aside class="margin-column">
+        <p class="margin-note"><strong>Reading method.</strong> The main column contains the architecture. Margin notes explain why a decision exists, what it prevents, or when it should be reconsidered.</p>
+      </aside>
+    </nav>
+
+    <main>
+      <section id="thesis">
+        <article class="content">
+          <h2><span class="number">01</span>Architectural thesis</h2>
+          <p class="lead dropcap">An ecommerce platform is not primarily a collection of CRUD endpoints. It is a coordination system for promises: a price was shown, stock was reserved, money was accepted, an order was confirmed, and a customer was informed.</p>
+          <p>The proposed system uses synchronous gRPC for immediate questions and short commands, directed Kafka commands for durable saga steps, and Kafka events for published business facts. PostgreSQL remains the source of truth for each service. The public network ends at <code>edge-api</code>; every other service is private infrastructure.</p>
+          <blockquote>
+            A service owns a business decision, its database, and the consequences of changing that decision.
+            <footer>Primary boundary rule</footer>
+          </blockquote>
+          <p>Microservices are justified only when boundaries are explicit. Splitting a codebase into seven binaries without separating ownership creates a distributed monolith: more deployments, more network failures, but the same coupling. This plan therefore treats service boundaries, message contracts, and failure behavior as first-class design material.</p>
+
+          <h3>Principles</h3>
+          <div class="rule"><b>01</b><p><strong>One public entry point.</strong> Internet traffic reaches Traefik, then <code>edge-api</code>. Databases, Kafka, Prometheus, Loki, Grafana, and internal gRPC endpoints stay private.</p></div>
+          <div class="rule"><b>02</b><p><strong>One owner per fact.</strong> Catalog owns product descriptions and list prices. Inventory owns stock. Payment owns provider state. Order owns the customer-visible purchase lifecycle.</p></div>
+          <div class="rule"><b>03</b><p><strong>No distributed database transaction.</strong> Cross-service consistency is achieved through state machines, events, idempotency, and compensation—not two-phase commit.</p></div>
+          <div class="rule"><b>04</b><p><strong>At-least-once is normal.</strong> Messages may be repeated. Handlers must make repetition harmless.</p></div>
+          <div class="rule"><b>05</b><p><strong>Operational evidence is part of the feature.</strong> A checkout is not complete until operators can trace it, measure it, and diagnose its failures.</p></div>
+          <div class="rule"><b>06</b><p><strong>Contracts are shared; business models are not.</strong> Protobuf modules describe communication. They must never become a global domain model imported everywhere.</p></div>
+
+          <div class="callout">
+            <strong>Scope warning</strong>
+            Seven services, Kafka, and a full observability stack are expensive for a first milestone. Keep the target architecture, but deliver it as vertical slices. First prove catalog and order behavior; then add authentication, inventory, payment, and notifications.
+          </div>
+        </article>
+        <aside class="margin-column">
+          <p class="sidenote"><span class="mark">1</span> The reference repository at <code>/home/ryuko/Documents/Codes/testing</code> demonstrates ports, adapters, and manual dependency injection. Its broad direction is useful, but transport DTOs, GORM errors, and infrastructure types leak into core packages. Copy the dependency principle, not the exact folders or interfaces.</p>
+          <p class="sidenote"><span class="mark">2</span> “Eventually consistent” does not mean “uncontrolled.” It means every intermediate state is named, observable, recoverable, and acceptable for a bounded period.</p>
+        </aside>
+      </section>
+
+      <section id="landscape">
+        <article class="content">
+          <h2><span class="number">02</span>System landscape</h2>
+          <p class="lead">The architecture has four planes: public traffic, synchronous service calls, asynchronous workflow messages, and operational telemetry.</p>
+        </article>
+
+        <figure class="figure">
+          <div class="architecture" role="img" aria-label="Ecommerce microservices architecture diagram">
+            <div class="arch-row">
+              <div class="node public center-4"><strong>Internet clients</strong><small>Web, mobile, admin, partner clients</small></div>
+            </div>
+            <div class="connector">HTTPS ↓</div>
+            <div class="arch-row">
+              <div class="node public center-4"><strong>Traefik · Dokploy</strong><small>DNS routing, TLS termination, reverse proxy, public request limits</small></div>
+            </div>
+            <div class="connector">REST / JSON ↓</div>
+            <div class="arch-row">
+              <div class="node public center-4"><strong>edge-api</strong><small>Gin HTTP transport, request mapping, public error contract; calls private services over mTLS</small></div>
+            </div>
+            <div class="connector">Private gRPC ↓</div>
+            <div class="arch-row">
+              <div class="node sync span-4"><strong>identity-service</strong><small>Auth orchestration, signed actor assertions, Ory adapters</small></div>
+              <div class="node sync span-4"><strong>catalog-service</strong><small>Products, variants, prices, publication</small></div>
+              <div class="node sync span-4"><strong>order-service</strong><small>Checkout, verifies actor assertions, order state, outbox</small></div>
+            </div>
+            <div class="arch-row">
+              <div class="node sync span-4"><strong>Ory Kratos + Hydra</strong><small>Identity, credentials, sessions, OAuth2/OIDC, consent, token issuance</small></div>
+            </div>
+            <div class="arch-row">
+              <div class="node data span-4"><strong>kratos_db + hydra_db</strong><small>Ory-owned identity, session, OAuth2, and consent state</small></div>
+              <div class="node data span-4"><strong>catalog_db</strong><small>Products, categories, variants, prices</small></div>
+              <div class="node data span-4"><strong>order_db</strong><small>Orders, items, outbox, processed events</small></div>
+            </div>
+            <div class="connector">Outbox publisher ↓</div>
+            <div class="arch-row">
+              <div class="node async span-12"><strong>Kafka</strong><small>Durable command and event transport, partitioned by order ID, consumed with explicit consumer groups</small></div>
+            </div>
+            <div class="connector">Events ↓</div>
+            <div class="arch-row">
+              <div class="node async span-4"><strong>inventory-service</strong><small>Stock, reservations, expiry, movements</small></div>
+              <div class="node async span-4"><strong>payment-service</strong><small>Payment attempts, provider adapter, webhooks, reconciliation</small></div>
+              <div class="node async span-4"><strong>notification-service</strong><small>Email delivery, templates, delivery attempts</small></div>
+            </div>
+            <div class="arch-row">
+              <div class="node data span-4"><strong>inventory_db</strong><small>Stock items, reservations, movements, inbox/outbox</small></div>
+              <div class="node data span-4"><strong>payment_db</strong><small>Attempts, provider references, inbox/outbox</small></div>
+              <div class="node data span-4"><strong>notification_db</strong><small>Optional initially; deliveries and deduplication</small></div>
+            </div>
+            <div class="connector">Metrics · logs · traces ↓</div>
+            <div class="arch-row">
+              <div class="node span-3"><strong>Prometheus</strong><small>Scrapes and evaluates metrics</small></div>
+              <div class="node span-3"><strong>Loki</strong><small>Stores indexed log labels and compressed log bodies</small></div>
+              <div class="node span-3"><strong>Tempo / OTLP backend</strong><small>Recommended trace storage</small></div>
+              <div class="node span-3"><strong>Grafana</strong><small>Dashboards, exploration, alert visualization</small></div>
+            </div>
+          </div>
+          <figcaption><span class="figure-number">FIG. 1</span> Target runtime landscape. Colored surfaces distinguish public, synchronous, asynchronous, and persistence concerns. Grafana visualizes data; it does not collect metrics or logs itself.</figcaption>
+        </figure>
+
+        <article class="content">
+          <h3>Communication policy</h3>
+          <table>
+            <thead><tr><th>Need</th><th>Mechanism</th><th>Reason</th></tr></thead>
+            <tbody>
+              <tr><td>Immediate client response</td><td>REST/JSON at Edge</td><td>Stable public API, browser-friendly semantics, centralized auth and error mapping.</td></tr>
+              <tr><td>Immediate internal query or command</td><td>gRPC</td><td>Typed contracts, deadlines, compact transport, generated clients.</td></tr>
+              <tr><td>Directed workflow step</td><td>Kafka command</td><td>Durable request to one logical owner, with explicit expected result and idempotency.</td></tr>
+              <tr><td>Published business fact</td><td>Kafka event</td><td>Immutable outcome for independent consumers, replay, and fan-out.</td></tr>
+              <tr><td>Service-owned state</td><td>PostgreSQL</td><td>Transactions, constraints, mature operations, strong local consistency.</td></tr>
+              <tr><td>Operational evidence</td><td>Prometheus + Loki + traces</td><td>Metrics answer “how much,” logs answer “what happened,” traces answer “where time and failure traveled.”</td></tr>
+            </tbody>
+          </table>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Grafana is the window.</strong> Prometheus, Loki, and a tracing backend are the stores. Grafana queries and correlates them.</p>
+        </aside>
+      </section>
+
+      <section id="boundaries">
+        <article class="content">
+          <h2><span class="number">03</span>Service boundaries</h2>
+          <p class="lead">Each service is defined by the business decisions it alone may make—not by a database table or API route.</p>
+
+          <h3>edge-api</h3>
+          <p>The Edge is the only internet-facing application. It terminates the public API contract and translates public REST requests into private gRPC calls. It validates access tokens locally, attaches trusted identity metadata, enforces coarse authorization, propagates request context, and maps internal errors into stable public error responses.</p>
+          <p><strong>It must not</strong> access service databases, implement checkout rules, consume business events, or become a second domain layer.</p>
+
+          <h4>When Catalog becomes a checkout availability risk</h4>
+          <p>Start with Order calling Catalog synchronously because it is the shortest correct design. If measurements later show that Catalog latency or availability harms checkout, Catalog can publish <code>ProductPublished</code>, <code>ProductPriceChanged</code>, and <code>ProductUnpublished</code> events. Order may then maintain a minimal local sellable-product projection. Do not build this projection speculatively: it introduces replication lag, replay, backfill, and reconciliation work.</p>
+
+          <h3>identity-service: application boundary around Ory</h3>
+          <p><code>identity-service</code> is a private gRPC application service. It owns registration/login/logout orchestration, Kratos session resolution, Hydra login/consent callbacks, and issuance of short-lived signed internal actor assertions. Only the Edge workload certificate may invoke its RPCs.</p>
+          <p>Use self-hosted <a href="https://www.ory.sh/kratos/docs/">Ory Kratos</a> for identities, credentials, login, registration, recovery, verification, MFA, and sessions. Use <a href="https://www.ory.sh/hydra/docs/">Ory Hydra</a> only for OAuth 2.0/OpenID Connect clients, consent, access tokens, refresh tokens, scopes, and audiences. The application never stores passwords or duplicates Ory session state.</p>
+          <p>For a protected request, Edge sends the client session token to Identity over mTLS. Identity calls Kratos <code>/sessions/whoami</code>, then signs a 60-second Ed25519 actor assertion for the target audience. Edge forwards that assertion—not the Kratos credential—to the destination service over a separate mTLS connection.</p>
+          <table>
+            <thead><tr><th>Component</th><th>Owns</th><th>Does not own</th><th>Decision</th></tr></thead>
+            <tbody>
+              <tr><td>Ory Kratos</td><td>Identity, credentials, self-service flows, MFA, sessions.</td><td>OAuth2 clients, scopes, audiences, access-token issuance.</td><td><strong>Authentication authority</strong></td></tr>
+              <tr><td>Ory Hydra</td><td>OAuth2/OIDC protocol, clients, consent, access and refresh tokens.</td><td>Passwords, user profiles, login UI.</td><td>Use when standards-based tokens are needed.</td></tr>
+              <tr><td>identity-service</td><td>Auth orchestration and short-lived internal actor assertions.</td><td>Passwords, credential storage, external session persistence.</td><td>Private application boundary over mTLS.</td></tr>
+            </tbody>
+          </table>
+          <p>Keep a small application-owned customer profile only for commerce-specific data such as addresses or marketing consent. Reference the immutable Kratos identity ID as <code>identity_subject</code>; never duplicate passwords or Ory sessions.</p>
+
+          <h3>catalog-service</h3>
+          <p>Owns products, categories, variants, SKUs, descriptive attributes, publication state, and list prices. It does not own available stock. During checkout, Order records a snapshot of the purchased SKU, name, unit price, currency, and quantity so historical orders do not mutate when Catalog changes.</p>
+
+          <h3>order-service</h3>
+          <p>Owns the customer-visible purchase lifecycle and acts as the checkout saga orchestrator. It validates checkout intent, stores order and item snapshots, calculates or verifies totals, persists the current saga step, issues explicit workflow commands, consumes inventory/payment outcomes, chooses compensation, and emits customer-visible lifecycle events through an outbox.</p>
+          <div class="state-flow" aria-label="Order state flow">
+            <span class="state">PENDING</span><span class="arrow">→</span>
+            <span class="state">AWAITING_INVENTORY</span><span class="arrow">→</span>
+            <span class="state">AWAITING_PAYMENT</span><span class="arrow">→</span>
+            <span class="state">PAYMENT_RECONCILIATION</span><span class="arrow">→</span>
+            <span class="state">CONFIRMED</span>
+          </div>
+          <p>Failure branches end in <code>CANCELLED</code> or <code>FAILED</code>. Transitions should be explicit methods or application commands, never arbitrary status updates from handlers.</p>
+
+          <h4>Cart ownership</h4>
+          <p>Order owns carts for now; do not create a separate cart service. A cart is mutable shopping intent, while an order is an immutable commercial record. Keep them as separate aggregates and tables inside <code>order-service</code>.</p>
+          <pre><code>carts
+- id, user_id, status, currency, version, expires_at, updated_at
+
+cart_items
+- cart_id, sku, quantity, observed_unit_price, observed_at
+
+orders / order_items
+- immutable checkout snapshot created from the cart</code></pre>
+          <p>Cart prices are advisory. At checkout, Order revalidates sellability and price against Catalog, calculates the authoritative total, and creates order-item snapshots. Cart mutation uses optimistic versioning so two devices do not silently overwrite each other. Guest carts can later use an opaque signed cart token and merge into a user cart after login.</p>
+          <p>Future discounts, tax, shipping, and multiple currencies fit through explicit quote components rather than changing stored totals in place:</p>
+          <pre><code>order_amounts
+- merchandise_subtotal_minor
+- discount_total_minor
+- shipping_total_minor
+- tax_total_minor
+- grand_total_minor
+- currency
+
+order_adjustments
+- type: discount | tax | shipping
+- code / jurisdiction / description
+- amount_minor
+- calculation_version</code></pre>
+          <p>For MVP these extra amounts remain zero and one configured currency is accepted. Later calculators produce a versioned checkout quote; Order snapshots every component. Never recompute historical orders from current tax, coupon, or shipping rules.</p>
+
+          <h3>inventory-service</h3>
+          <p>Owns on-hand quantity, reserved quantity, stock movements, reservations, reservation expiry, and reservation consumption. The fundamental invariant is:</p>
+          <pre><code>available_quantity = on_hand_quantity - reserved_quantity
+available_quantity >= 0</code></pre>
+          <p>Reservation operations must use one database transaction and atomic conditional updates or row locks. An expired or cancelled checkout releases its reservation. A confirmed order consumes it.</p>
+          <pre><code>UPDATE inventory_items
+SET reserved_quantity = reserved_quantity + $2
+WHERE sku = $1
+  AND on_hand_quantity - reserved_quantity &gt;= $2;
+
+-- exactly one affected row means the item was reserved</code></pre>
+          <p>For a multi-SKU order, sort SKUs deterministically, reserve all rows in that order inside one transaction, and roll back the entire reservation if any SKU is unavailable. This prevents partial order reservations and reduces deadlock risk. A unique reservation-item constraint such as <code>(reservation_id, sku)</code> makes retries harmless.</p>
+
+          <h3>payment-service</h3>
+          <p>Owns payment attempts, provider references, idempotency keys, webhook verification, authorization/capture/refund state, and reconciliation. Use Stripe PaymentIntents in sandbox/test mode first, then activate live mode only after webhook, reconciliation, refund, and operational checks pass. Money is stored as integer minor units plus ISO currency; floating point is forbidden.</p>
+          <pre><code>amount_minor = 1099
+currency     = "USD"</code></pre>
+          <h4>Immediate capture versus authorize-then-capture</h4>
+          <p><strong>Immediate capture</strong> charges the customer as soon as payment succeeds. It is simpler and is the chosen MVP behavior after stock has been reserved. <strong>Authorize-then-capture</strong> first reserves funds and captures them later—usually when fulfillment is ready. It is useful for physical goods, delayed shipping, split fulfillment, or stock that is not final at checkout, but authorization expiry and partial capture add workflow states.</p>
+          <p>Design Payment with separate <code>authorized_amount</code> and <code>captured_amount</code> plus explicit commands, while initially configuring Stripe for automatic/immediate capture. This preserves a later migration to manual capture without changing Order’s money representation.</p>
+          <p>The browser never determines final payment truth. A verified provider response, provider lookup, or verified webhook does. Payment must represent ambiguous outcomes explicitly:</p>
+          <div class="state-flow" aria-label="Payment state flow">
+            <span class="state">PENDING</span><span class="arrow">→</span>
+            <span class="state">PROCESSING</span><span class="arrow">→</span>
+            <span class="state">SUCCEEDED</span>
+            <span class="state">FAILED</span>
+            <span class="state">UNKNOWN</span>
+            <span class="state">REQUIRES_RECONCILIATION</span>
+          </div>
+          <p>A provider timeout is not proof of failure: the provider may have processed the request while the response was lost. Keep the original provider idempotency key, query provider truth or wait for a verified webhook, and reconcile asynchronously. Order must not release inventory merely because the synchronous payment response timed out.</p>
+
+          <h3>notification-service</h3>
+          <p>Consumes final business events and translates them into delivery requests. It owns templates, provider integration, deduplication, delivery attempts, and—when required—retry policy. Notification failure must not roll back a confirmed order.</p>
+        </article>
+        <aside class="margin-column">
+          <p class="sidenote"><span class="mark">3</span> Catalog answers “what is this item and what is its price?” Inventory answers “can this quantity be promised now?” Keeping these decisions separate prevents stock concerns from infecting product publishing.</p>
+          <p class="sidenote"><span class="mark">4</span> A notification is a consequence, not the transaction. Email outages should be visible and retried, but must not make the purchase disappear.</p>
+        </aside>
+      </section>
+
+      <section id="hexagonal">
+        <article class="content">
+          <h2><span class="number">04</span>Hexagonal service anatomy</h2>
+          <p class="lead">Hexagonal architecture is a dependency rule: business behavior depends on ports; adapters depend on business behavior. Folder names merely make the rule visible.</p>
+          <pre><code>apps/order-service/
+├── cmd/order-service/main.go       # process entrypoint
+├── internal/
+│   ├── order/
+│   │   ├── order.go                # aggregate and invariants
+│   │   ├── service.go              # application use cases
+│   │   ├── repository.go           # persistence port
+│   │   ├── events.go               # internal event definitions
+│   │   └── errors.go               # domain/application errors
+│   ├── port/
+│   │   ├── catalog.go              # outbound catalog capability
+│   │   ├── publisher.go            # event publication capability
+│   │   └── clock.go                # only if time requires deterministic tests
+│   ├── adapter/
+│   │   ├── postgres/               # repository + outbox implementation
+│   │   ├── grpc/                   # inbound server and outbound clients
+│   │   └── kafka/                  # consumers and publisher worker
+│   └── app/app.go                  # composition and lifecycle ownership
+├── migrations/
+├── go.mod
+├── moon.yml
+└── .air.toml</code></pre>
+
+          <h3>Dependency direction</h3>
+          <pre><code>gRPC handler ───────► application service ───────► repository port
+                                                        ▲
+                                                        │ implements
+                                                  PostgreSQL adapter
+
+Kafka consumer ─────► application service ───────► event/outbox port
+
+main/app wiring imports all sides and connects them.</code></pre>
+
+          <h3>Boundary rules</h3>
+          <ul class="checklist">
+            <li>Domain/application packages never import Gin, gRPC generated server types, Kafka clients, SQL drivers, GORM, environment loaders, or HTTP DTOs.</li>
+            <li>Transport adapters own request parsing and response mapping.</li>
+            <li>Persistence adapters translate database rows and infrastructure errors into application concepts.</li>
+            <li>Ports are defined where they are consumed. Do not create a global interfaces package.</li>
+            <li>Create an interface only when the application consumes a capability from outside its boundary or when multiple implementations are meaningful.</li>
+            <li>The composition root owns resource startup and shutdown: DB pools, Kafka clients, gRPC connections, HTTP servers, workers, and telemetry providers.</li>
+          </ul>
+
+          <h3>Lessons from the inspected repository</h3>
+          <table>
+            <thead><tr><th>Observed pattern</th><th>Keep</th><th>Change</th></tr></thead>
+            <tbody>
+              <tr><td><code>core/</code>, <code>adapter/</code>, <code>interface/</code></td><td>Visible separation of business logic and integration code.</td><td>Use idiomatic names and enforce imports, not only folders.</td></tr>
+              <tr><td>Repository interfaces beside core services</td><td>Ports are mockable and owned near use cases.</td><td>Keep infrastructure errors such as <code>gorm.ErrRecordNotFound</code> out of core.</td></tr>
+              <tr><td>Manual wiring in <code>app.go</code></td><td>Dependencies remain explicit.</td><td>Split composition by resource; retain and close connections; return errors instead of panicking.</td></tr>
+              <tr><td>Core service importing HTTP DTO</td><td>Nothing.</td><td>Define application command types inside core and map HTTP input to them.</td></tr>
+              <tr><td>Logging/tracing injected everywhere</td><td>Context propagation and operational visibility.</td><td>Instrument boundaries; avoid coupling domain code to custom telemetry frameworks.</td></tr>
+            </tbody>
+          </table>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Minimal ports.</strong> A broad repository interface copied across layers is ceremony. Prefer a capability named for the use case: <code>SaveOrder</code>, <code>FindOrder</code>, <code>ReserveStock</code>.</p>
+          <p class="margin-note"><strong>Composition is allowed to know everything.</strong> The process entrypoint is where concrete adapters meet abstract ports. It is not domain code.</p>
+        </aside>
+      </section>
+
+      <section id="checkout">
+        <article class="content">
+          <h2><span class="number">05</span>Checkout saga</h2>
+          <p class="lead">Checkout is a distributed state machine with one explicit coordinator. <code>order-service</code> owns saga progress and compensation; Inventory and Payment remain authoritative for their own decisions.</p>
+
+          <h3>Why orchestration here</h3>
+          <p>Pure event choreography is attractive when reactions are independent, but a critical checkout path has ordering, timeout, compensation, and ambiguity rules. If Inventory triggers Payment directly and Payment triggers Order indirectly, the workflow is spread across consumers and becomes difficult to inspect or change. Order therefore sends commands and records each expected reply. Choreography remains appropriate after a final fact such as <code>OrderConfirmed</code>, where Notification, analytics, and future fulfillment can react independently.</p>
+          <pre><code>order-service                    inventory-service             payment-service
+     │ ReserveInventory command        │                              │
+     ├─────────────────────────────────►│                              │
+     │ InventoryReserved event         │                              │
+     │◄─────────────────────────────────┤                              │
+     │ CapturePayment command          │                              │
+     ├───────────────────────────────────────────────────────────────►│
+     │ PaymentSucceeded event          │                              │
+     │◄───────────────────────────────────────────────────────────────┤
+     │ ConfirmReservation command      │                              │
+     ├─────────────────────────────────►│                              │
+     │ records CONFIRMED and publishes OrderConfirmed                 │</code></pre>
+
+          <h3>Durable happy path</h3>
+          <ol>
+            <li>The client submits checkout to Edge with an idempotency key.</li>
+            <li>Edge asks Identity to resolve the client session, then calls Order over gRPC with a deadline and target-bound actor assertion.</li>
+            <li>Order obtains authoritative product/price data from Catalog, records immutable line-item snapshots, creates the order and saga row, and inserts <code>ReserveInventory</code> into its outbox in the same transaction.</li>
+            <li>The Order publisher sends the command to Kafka, keyed by <code>order_id</code>.</li>
+            <li>Inventory consumes the command, deduplicates by <code>message_id</code>, atomically reserves every SKU, and emits either <code>InventoryReserved</code> or <code>InventoryRejected</code>.</li>
+            <li>Order consumes <code>InventoryReserved</code>, records the reservation ID, advances to <code>AWAITING_PAYMENT</code>, and writes <code>CapturePayment</code> to its outbox in the same transaction.</li>
+            <li>Payment consumes the command and uses a stable provider idempotency key derived from the payment attempt—not from a retry count.</li>
+            <li>Payment emits <code>PaymentSucceeded</code>, <code>PaymentFailed</code>, or keeps an ambiguous attempt in reconciliation without publishing false failure.</li>
+            <li>Order consumes success, writes <code>ConfirmReservation</code>, transitions to <code>CONFIRMED</code>, and emits <code>OrderConfirmed</code> according to the chosen confirmation invariant.</li>
+            <li>Notification and other independent consumers react to <code>OrderConfirmed</code>. Their failures never reverse the order.</li>
+          </ol>
+
+          <h3>Compensation and ambiguity</h3>
+          <pre><code>InventoryRejected
+  └──► Order CANCELLED (reason: insufficient_inventory)
+
+InventoryReserved → definitive PaymentFailed
+  ├──► Order writes ReleaseInventory command
+  └──► Order CANCELLED only after compensation is durably requested
+
+InventoryReserved → provider timeout / lost response
+  ├──► Payment UNKNOWN or REQUIRES_RECONCILIATION
+  ├──► keep reservation until a bounded payment-resolution deadline
+  └──► provider lookup/webhook decides SUCCEEDED or definitive FAILED
+
+Notification failure
+  └──► retry/quarantine notification only; order remains CONFIRMED</code></pre>
+
+          <h3>Saga persistence</h3>
+          <pre><code>checkout_sagas
+- order_id               text primary key
+- state                  text not null
+- expected_message_type  text null
+- reservation_id         text null
+- payment_id             text null
+- deadline_at            timestamptz null
+- version                 bigint not null
+- last_error_code        text null
+- updated_at              timestamptz not null</code></pre>
+          <p>Each transition checks the current state and expected message, updates the saga with optimistic versioning or row locking, and creates the next outbox message in one transaction. Late, duplicate, or out-of-order results are logged and ignored or reconciled according to explicit transition rules.</p>
+
+          <h3>Client response semantics</h3>
+          <p>The initial checkout endpoint should return an accepted order representation once Order has durably recorded the request. It should not keep the HTTP request open while inventory, payment, and notification finish. The client observes progression through order polling, server-sent events, WebSocket updates, or push notifications. Polling is the simplest correct first choice.</p>
+          <p>Recommended response:</p>
+          <pre><code>HTTP/1.1 202 Accepted
+Location: /v1/orders/ord_...
+
+{
+  "order_id": "ord_...",
+  "status": "awaiting_inventory",
+  "created_at": "..."
+}</code></pre>
+
+          <h3>Timeouts and abandonment</h3>
+          <p>Inventory reservations must expire, but expiry must account for payment ambiguity. A scheduled worker finds expired active reservations and requests release only when Order/Payment policy says no successful or unresolved payment remains. The timeout value is a product decision and operational parameter, not a hard-coded handler constant.</p>
+          <table>
+            <thead><tr><th>Deadline</th><th>Owner</th><th>Action after expiry</th></tr></thead>
+            <tbody>
+              <tr><td>Inventory command response</td><td>Order</td><td>Retry safely, inspect consumer lag, then quarantine/stall rather than assuming rejection.</td></tr>
+              <tr><td>Reservation lifetime</td><td>Inventory</td><td>Emit expiry intent; coordinate with Order when payment may be unresolved.</td></tr>
+              <tr><td>Payment resolution</td><td>Payment</td><td>Query provider, await verified webhook, then mark success or definitive failure.</td></tr>
+              <tr><td>Saga maximum age</td><td>Order</td><td>Raise operational alert and run reconciliation; do not silently force a guessed outcome.</td></tr>
+            </tbody>
+          </table>
+        </article>
+        <aside class="margin-column">
+          <p class="sidenote"><span class="mark">5</span> Returning <code>202 Accepted</code> reflects reality: the checkout request is durable, but the distributed workflow is not yet complete.</p>
+          <p class="sidenote"><span class="mark">6</span> A rare race exists when payment succeeds near reservation expiry. The state machine must define precedence and reconciliation. Provider truth and recorded timestamps should make the resolution deterministic.</p>
+        </aside>
+      </section>
+
+      <section id="events">
+        <article class="content">
+          <h2><span class="number">06</span>Kafka commands and events</h2>
+          <p class="lead">Commands request one owner to perform a workflow step. Events are immutable statements of facts that already happened. Keeping them separate makes responsibility, retries, and failure behavior visible.</p>
+
+          <h3>Message semantics</h3>
+          <table>
+            <thead><tr><th>Kind</th><th>Naming</th><th>Audience</th><th>Examples</th></tr></thead>
+            <tbody>
+              <tr><td>Command</td><td>Imperative verb</td><td>One logical service owner</td><td><code>ReserveInventory</code>, <code>CapturePayment</code>, <code>ReleaseInventory</code></td></tr>
+              <tr><td>Event</td><td>Past-tense fact</td><td>Zero or more consumers</td><td><code>InventoryReserved</code>, <code>PaymentSucceeded</code>, <code>OrderConfirmed</code></td></tr>
+          </tbody></table>
+          <p>A command is not proof that work occurred. Only the corresponding result event records the outcome. Consumers must never infer “payment succeeded” from seeing <code>CapturePayment</code>.</p>
+
+          <h3>Initial topics</h3>
+          <pre><code>commerce.inventory.commands.v1   # consumed by inventory-service group
+commerce.payment.commands.v1     # consumed by payment-service group
+commerce.order.events.v1
+commerce.inventory.events.v1
+commerce.payment.events.v1</code></pre>
+          <p>Begin with domain-level topics rather than one topic per message. Use <code>order_id</code> as the key for checkout messages so Kafka preserves per-order ordering within a partition. A command topic has one logical consumer group; replicas share that group. Independent event consumers use separate groups.</p>
+
+          <h3>Common message metadata</h3>
+          <pre><code>message MessageMetadata {
+  string message_id      = 1;  // unique delivery/deduplication identity
+  string message_type    = 2;
+  uint32 message_version = 3;
+  string created_at      = 4;
+  string producer        = 5;
+  string correlation_id  = 6;
+  string causation_id    = 7;
+  string aggregate_id    = 8;  // order_id for checkout
+  string reply_by        = 9;  // commands only; business deadline
+}
+
+// Metadata may wrap a typed oneof payload or accompany a concrete
+// versioned Protobuf message. Do not use untyped JSON maps.</code></pre>
+          <p><code>correlation_id</code> links an end-to-end business interaction. <code>causation_id</code> identifies the command or event that directly caused this message. <code>message_id</code> drives transport deduplication; business keys still protect external effects.</p>
+
+          <h3>Workflow vocabulary</h3>
+          <table>
+            <thead><tr><th>Owner</th><th>Consumes commands</th><th>Publishes result/fact events</th></tr></thead>
+            <tbody>
+              <tr><td>Inventory</td><td><code>ReserveInventory</code>, <code>ReleaseInventory</code>, <code>ConfirmReservation</code></td><td><code>InventoryReserved</code>, <code>InventoryRejected</code>, <code>InventoryReleased</code>, <code>InventoryReservationConfirmed</code>, <code>InventoryReservationExpired</code></td></tr>
+              <tr><td>Payment</td><td><code>CapturePayment</code>, <code>RefundPayment</code></td><td><code>PaymentSucceeded</code>, <code>PaymentFailed</code>, <code>PaymentRequiresReconciliation</code>, <code>PaymentRefunded</code></td></tr>
+              <tr><td>Order</td><td>Consumes Inventory/Payment result events</td><td><code>OrderPlaced</code>, <code>OrderConfirmed</code>, <code>OrderCancelled</code></td></tr>
+            </tbody>
+          </table>
+
+          <h3>Command result rules</h3>
+          <ul>
+            <li>Every command declares its target aggregate, idempotency identity, schema version, and business deadline.</li>
+            <li>The target emits one durable result fact or records an explicitly unresolved state.</li>
+            <li>A timeout waiting for a result is not itself a negative business result.</li>
+            <li>Replayed commands retain their original <code>message_id</code>, key, correlation, and causation metadata.</li>
+            <li>Order stores which result type it expects so unrelated, late, or out-of-order messages cannot advance the saga.</li>
+          </ul>
+
+          <h3>Topic and consumer-group plan</h3>
+          <table>
+            <thead><tr><th>Topic</th><th>Key</th><th>Consumer group</th><th>Owner</th></tr></thead>
+            <tbody>
+              <tr><td><code>commerce.inventory.commands.v1</code></td><td><code>order_id</code></td><td><code>inventory-service-v1</code></td><td>Inventory</td></tr>
+              <tr><td><code>commerce.payment.commands.v1</code></td><td><code>order_id</code></td><td><code>payment-service-v1</code></td><td>Payment</td></tr>
+              <tr><td><code>commerce.inventory.events.v1</code></td><td><code>order_id</code></td><td><code>order-inventory-results-v1</code></td><td>Order</td></tr>
+              <tr><td><code>commerce.payment.events.v1</code></td><td><code>order_id</code></td><td><code>order-payment-results-v1</code></td><td>Order</td></tr>
+              <tr><td><code>commerce.order.events.v1</code></td><td><code>order_id</code></td><td><code>notification-order-events-v1</code></td><td>Notification</td></tr>
+            </tbody>
+          </table>
+          <p>Names are initial contract decisions. Do not add a consumer to an existing group unless replicas are sharing the same logical work; independent business reactions need independent groups so each receives the event.</p>
+
+          <h3>Contract discipline</h3>
+          <ul>
+            <li>Protobuf package names include versions: <code>commerce.order.events.v1</code>.</li>
+            <li>Never reuse a removed field number. Reserve it.</li>
+            <li>Additive optional fields are preferred. Breaking semantic changes require a new event version.</li>
+            <li>Consumers ignore unknown fields and event types they do not own.</li>
+            <li>Events describe facts, not vague mutations. Prefer <code>PaymentSucceeded</code> over <code>PaymentStatusChanged</code>.</li>
+            <li>Do not place secrets, raw card data, passwords, or unnecessary personal information in events.</li>
+          </ul>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Common Events is a wire library.</strong> Generated protobuf types may be shared. Domain entities, validation rules, and service errors remain private.</p>
+          <p class="margin-note"><strong>Schema registry?</strong> Buf provides source contract discipline. A runtime Kafka schema registry can be added when independent teams or non-Go consumers make compatibility enforcement operationally necessary.</p>
+        </aside>
+      </section>
+
+      <section id="outbox">
+        <article class="content">
+          <h2><span class="number">07</span>Outbox and idempotency</h2>
+          <p class="lead">The outbox closes the gap between a committed database change and a message that must eventually be published. Idempotency closes the gap created when that message is published more than once.</p>
+
+          <h3>Outbox record</h3>
+          <pre><code>outbox_events
+- id                uuid primary key
+- aggregate_id      text not null
+- event_type        text not null
+- event_version     integer not null
+- topic             text not null
+- message_key       text not null
+- payload           bytea not null
+- created_at        timestamptz not null
+- published_at      timestamptz null
+- attempts          integer not null default 0
+- last_error        text null</code></pre>
+          <p>The domain mutation and outbox insert happen in one PostgreSQL transaction. A background publisher claims unpublished rows in bounded batches, publishes them, and marks them published.</p>
+          <pre><code>SELECT ...
+FROM outbox_events
+WHERE published_at IS NULL
+ORDER BY created_at
+FOR UPDATE SKIP LOCKED
+LIMIT 100;</code></pre>
+          <p><code>SKIP LOCKED</code> permits multiple publisher replicas without publishing the same claimed row concurrently. It does not create exactly-once delivery: a process can publish successfully and crash before setting <code>published_at</code>.</p>
+
+          <h3>Consumer inbox / processed events</h3>
+          <pre><code>processed_events
+- consumer_name     text not null
+- event_id          uuid not null
+- processed_at      timestamptz not null
+- primary key (consumer_name, event_id)</code></pre>
+          <ol>
+            <li>Begin a database transaction.</li>
+            <li>Insert <code>(consumer_name, event_id)</code>.</li>
+            <li>If the unique constraint reports a duplicate, commit/acknowledge without repeating work.</li>
+            <li>Apply the business mutation.</li>
+            <li>Insert resulting outgoing events into the local outbox.</li>
+            <li>Commit the database transaction.</li>
+            <li>Commit the Kafka offset only after the database commit succeeds.</li>
+          </ol>
+
+          <h3>Retention and cleanup</h3>
+          <p>Both tables require bounded, observable cleanup jobs. Cleanup runs in small batches to avoid long locks and WAL spikes.</p>
+          <table>
+            <thead><tr><th>Data</th><th>Minimum retention basis</th><th>Cleanup rule</th></tr></thead>
+            <tbody>
+              <tr><td>Unpublished outbox</td><td>Never age-delete</td><td>Alert on age/attempts; repair or quarantine with an audit record.</td></tr>
+              <tr><td>Published outbox</td><td>Operational replay/audit requirement</td><td>Archive if required, then delete rows older than the approved window in bounded batches.</td></tr>
+              <tr><td><code>processed_events</code></td><td>Maximum Kafka retention + maximum manual replay horizon + safety margin</td><td>Delete only after an event can no longer be legitimately replayed. Otherwise old replay can repeat effects.</td></tr>
+              <tr><td>Provider webhook IDs</td><td>Provider retry/replay horizon + safety margin</td><td>Retain long enough to reject delayed duplicates.</td></tr>
+            </tbody>
+          </table>
+          <p>Expose cleanup duration, deleted-row count, failures, table size, and oldest-row age as metrics. Payment and security audit data must follow legal/business retention and may need immutable archival rather than deletion.</p>
+
+          <h3>Business idempotency</h3>
+          <p>Event deduplication is necessary but not sufficient. External providers and public commands need business keys:</p>
+          <ul>
+            <li>Checkout accepts a client idempotency key scoped to user/account.</li>
+            <li>Inventory enforces one active reservation per order/SKU decision.</li>
+            <li>Payment sends a stable provider idempotency key per payment attempt.</li>
+            <li>Webhooks deduplicate by provider event ID.</li>
+            <li>Notifications deduplicate by notification type and business aggregate when duplicate delivery is unacceptable.</li>
+          </ul>
+        </article>
+        <aside class="margin-column">
+          <p class="sidenote"><span class="mark">7</span> “Exactly once” is not a useful end-to-end promise once a database, Kafka, and an external payment provider participate. Durable at-least-once transport plus idempotent effects is the practical model.</p>
+        </aside>
+      </section>
+
+      <section id="data">
+        <article class="content">
+          <h2><span class="number">08</span>PostgreSQL ownership</h2>
+          <p class="lead">Database-per-service means exclusive logical ownership. It does not require seven PostgreSQL servers on day one.</p>
+          <p>Use one PostgreSQL cluster initially, with separate databases, users, passwords, and migration histories. Services must not query or write another service’s database. Cross-service data arrives through APIs or events.</p>
+
+          <table>
+            <thead><tr><th>Database</th><th>Owned records</th><th>Critical constraints</th></tr></thead>
+            <tbody>
+              <tr><td><code>kratos_db</code> / <code>hydra_db</code></td><td>Ory-owned identities, credentials, sessions, OAuth2 clients, consent, and tokens</td><td>Managed only by Ory migrations; isolated users and backups.</td></tr>
+              <tr><td><code>catalog_db</code></td><td>Products, categories, variants, prices</td><td>Unique SKU; currency/amount validity; publication invariants.</td></tr>
+              <tr><td><code>order_db</code></td><td>Carts/items, orders/item snapshots, amount adjustments, saga/state history, outbox/inbox</td><td>Cart optimistic version; valid states; positive quantities; non-negative money; idempotency key uniqueness.</td></tr>
+              <tr><td><code>inventory_db</code></td><td>Stock, reservations, movements, outbox/inbox</td><td>Non-negative quantities; reservation uniqueness; valid expiry/state combinations.</td></tr>
+              <tr><td><code>payment_db</code></td><td>Attempts, provider events, refunds, outbox/inbox</td><td>Provider reference uniqueness; currency/amount validity; webhook deduplication.</td></tr>
+              <tr><td><code>notification_db</code></td><td>Deliveries, attempts, deduplication</td><td>Delivery identity uniqueness where required.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Migrations</h3>
+          <p>Migrations live inside the owning service and run as a controlled deployment task. Application replicas must not all race to migrate on startup. Migrations should be forward-compatible with the currently running and immediately previous application deployment during rolling updates.</p>
+          <p>Recommended discipline:</p>
+          <ol>
+            <li>Expand: add nullable columns/tables/indexes without breaking old code.</li>
+            <li>Deploy code that writes/reads the new shape.</li>
+            <li>Backfill if required.</li>
+            <li>Contract: remove old columns only after no deployed version uses them.</li>
+          </ol>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>No cross-service foreign keys.</strong> An <code>order.user_id</code> is an external Kratos identity reference, not a database FK to <code>kratos_db</code>.</p>
+          <p class="margin-note"><strong>DB constraints matter.</strong> Application validation improves errors. Constraints protect truth under races, bugs, retries, and manual operations.</p>
+        </aside>
+      </section>
+
+      <section id="observability">
+        <article class="content">
+          <h2><span class="number">09</span>Observability platform</h2>
+          <p class="lead">Prometheus, Loki, Grafana, and distributed tracing form one diagnostic system. They should share labels and identifiers so an operator can move from a symptom to the affected request, event, order, and service.</p>
+
+          <h3>Component responsibilities</h3>
+          <table>
+            <thead><tr><th>Component</th><th>Responsibility</th><th>Not responsible for</th></tr></thead>
+            <tbody>
+              <tr><td>Prometheus</td><td>Scrapes metrics, stores time series, evaluates recording and alerting rules.</td><td>Full request logs or high-cardinality business identifiers.</td></tr>
+              <tr><td>Loki</td><td>Stores logs with low-cardinality labels and searchable structured fields.</td><td>Primary metrics or arbitrary indexing of every JSON field.</td></tr>
+              <tr><td>Grafana</td><td>Dashboards, Explore, correlations, alert views, operational navigation.</td><td>Collecting application telemetry by itself.</td></tr>
+              <tr><td>OpenTelemetry Collector</td><td>Receives, batches, enriches, and exports traces/metrics/logs where appropriate.</td><td>Long-term visualization.</td></tr>
+              <tr><td>Tempo</td><td>Recommended trace storage and trace lookup.</td><td>Metrics aggregation or log storage.</td></tr>
+              <tr><td>Grafana Alloy</td><td>Discovers container logs, parses/enriches them, buffers transient failures, and exports to Loki.</td><td>Application business decisions or long-term storage.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Collection topology</h3>
+          <pre><code>Go service /metrics ───────────────► Prometheus ──► Grafana
+Go service JSON stdout ─► Alloy ───► Loki ───────► Grafana
+Go service OTLP ─► OTel Collector ─► Tempo ──────► Grafana</code></pre>
+          <p>Use Grafana Alloy—not Promtail—for a greenfield log pipeline. Alloy discovers Dokploy/Docker containers, adds controlled labels such as service and environment, parses JSON, redacts forbidden fields where necessary, buffers brief Loki outages, and exports over the private network. Keep OpenTelemetry Collector responsible for application OTLP traces. This division avoids two collectors doing the same job.</p>
+
+          <h3>Metrics architecture</h3>
+          <p>Every Go service exposes a private <code>/metrics</code> endpoint. Prometheus scrapes it over the internal network. The endpoint must not be published by Traefik.</p>
+          <p>Start with RED metrics for request-driven services:</p>
+          <ul>
+            <li><strong>Rate:</strong> requests per second by service, method, route template, and status class.</li>
+            <li><strong>Errors:</strong> failed request rate by stable error category.</li>
+            <li><strong>Duration:</strong> latency histogram by service and operation.</li>
+          </ul>
+          <p>Use USE metrics for resources:</p>
+          <ul>
+            <li><strong>Utilization:</strong> DB pool usage, CPU, memory, goroutines.</li>
+            <li><strong>Saturation:</strong> DB wait count/time, Kafka lag, worker queue depth.</li>
+            <li><strong>Errors:</strong> connection failures, publish failures, scrape failures.</li>
+          </ul>
+
+          <h4>Recommended application metrics</h4>
+          <pre><code>http_server_requests_total{service,method,route,status_class}
+http_server_request_duration_seconds{service,method,route}
+grpc_server_requests_total{service,grpc_service,grpc_method,code}
+grpc_server_request_duration_seconds{service,grpc_service,grpc_method}
+
+orders_created_total{currency}
+order_state_transitions_total{from,to}
+checkout_duration_seconds{outcome}
+
+inventory_reservations_total{outcome}
+inventory_reservation_duration_seconds{outcome}
+inventory_expired_reservations_total
+
+payment_attempts_total{provider,outcome,currency}
+payment_provider_duration_seconds{provider,operation,outcome}
+payment_webhook_events_total{provider,outcome}
+
+outbox_pending_events{service}
+outbox_oldest_pending_age_seconds{service}
+outbox_publish_total{service,event_type,outcome}
+
+kafka_consumer_messages_total{service,consumer_group,topic,outcome}
+kafka_consumer_processing_duration_seconds{service,consumer_group,topic}
+kafka_consumer_lag{consumer_group,topic,partition}</code></pre>
+
+          <div class="callout">
+            <strong>Cardinality rule</strong>
+            Never use <code>user_id</code>, <code>order_id</code>, <code>event_id</code>, email, raw URL, error message, or trace ID as a Prometheus label. These values create unbounded time-series cardinality. Put them in structured logs and trace attributes instead.
+          </div>
+
+          <h3>Logging with Loki</h3>
+          <p>Services write structured JSON to stdout. Container log collectors ship stdout to Loki. Do not make every service call Loki directly; that couples application availability to the logging backend and complicates buffering.</p>
+          <pre><code>{
+  "time": "2026-08-01T17:32:42Z",
+  "level": "ERROR",
+  "service": "payment-service",
+  "environment": "production",
+  "message": "payment provider request failed",
+  "operation": "capture_payment",
+  "order_id": "ord_...",
+  "payment_id": "pay_...",
+  "event_id": "evt_...",
+  "correlation_id": "cor_...",
+  "trace_id": "4f2...",
+  "provider": "...",
+  "error_code": "provider_timeout",
+  "retryable": true
+}</code></pre>
+          <p>Use Loki labels only for low-cardinality dimensions such as <code>service</code>, <code>environment</code>, <code>level</code>, and perhaps <code>container</code>. Keep order IDs and trace IDs as parsed JSON fields queried on demand.</p>
+
+          <h3>Trace propagation</h3>
+          <p>Use OpenTelemetry instrumentation for Gin, gRPC clients/servers, PostgreSQL, and Kafka. Propagate W3C Trace Context over HTTP and gRPC. For Kafka, inject trace context into message headers. Consumers create a processing span linked to or parented from the producer context according to the chosen semantic convention.</p>
+          <p>Useful span attributes include stable operation data:</p>
+          <pre><code>service.name
+rpc.system
+rpc.service
+rpc.method
+messaging.system
+messaging.destination.name
+messaging.operation
+commerce.order.id       # trace attribute, not metric label
+commerce.event.id
+commerce.event.type
+payment.provider</code></pre>
+
+          <h3>Grafana dashboards</h3>
+          <h4>1. Platform overview</h4>
+          <ul>
+            <li>Request rate, error rate, and p50/p95/p99 latency by service.</li>
+            <li>Service availability and readiness.</li>
+            <li>CPU, memory, goroutines, restart count, and DB pool saturation.</li>
+            <li>Kafka broker health and consumer lag.</li>
+          </ul>
+
+          <h4>2. Checkout health</h4>
+          <ul>
+            <li>Orders created, confirmed, cancelled, and failed over time.</li>
+            <li>Checkout conversion from created to confirmed.</li>
+            <li>Time spent in inventory and payment stages.</li>
+            <li>Cancellation reason distribution.</li>
+            <li>Orders stuck in non-terminal states beyond expected duration.</li>
+          </ul>
+
+          <h4>3. Inventory</h4>
+          <ul>
+            <li>Reservation success/rejection rate.</li>
+            <li>Expired reservations.</li>
+            <li>Reservation processing latency.</li>
+            <li>Consumer lag for inventory groups.</li>
+          </ul>
+
+          <h4>4. Payments</h4>
+          <ul>
+            <li>Success/failure rate by provider and operation.</li>
+            <li>Provider latency and timeout rate.</li>
+            <li>Webhook delay and verification failures.</li>
+            <li>Payments needing reconciliation.</li>
+          </ul>
+
+          <h4>5. Event delivery</h4>
+          <ul>
+            <li>Outbox pending count and oldest-event age.</li>
+            <li>Publish retry rate.</li>
+            <li>Consumer processing failures and dead-letter volume.</li>
+            <li>Lag by consumer group and partition.</li>
+          </ul>
+
+          <h3>SLIs, SLOs, and error budgets</h3>
+          <p>Define customer-visible objectives before the first production-capable checkout, not after all services exist. Numbers below are templates to approve—not promises inferred from this document.</p>
+          <table>
+            <thead><tr><th>Capability</th><th>SLI</th><th>Example objective/window</th></tr></thead>
+            <tbody>
+              <tr><td>Public API availability</td><td>Valid Edge requests returning non-5xx / eligible requests</td><td>99.9% over rolling 30 days</td></tr>
+              <tr><td>Order acceptance</td><td>Valid idempotent checkout requests durably creating or returning an order</td><td>99.9% over rolling 30 days</td></tr>
+              <tr><td>Workflow completion</td><td>Eligible orders reaching a correct terminal state within the business deadline</td><td>99.5% within 5 minutes</td></tr>
+              <tr><td>Checkout latency</td><td>Time from accepted order to terminal state, separated by outcome/provider</td><td>95% within approved target</td></tr>
+              <tr><td>Event freshness</td><td>Oldest required outbox/event processing age</td><td>99.9% below approved age</td></tr>
+              <tr><td>Payment correctness</td><td>Known provider outcomes matching local terminal payment state</td><td>100% after reconciliation window</td></tr>
+            </tbody>
+          </table>
+          <p>The error budget is the allowed bad fraction: for a 99.9% monthly availability SLO, 0.1% is available for failures. Track remaining budget and burn rate. Freeze risky releases or prioritize reliability when the budget is exhausted. Payment correctness is treated as an invariant and reconciliation objective, not traded casually for availability.</p>
+
+          <h3>Alerting policy</h3>
+          <p>Alerts should indicate customer impact, fast/slow SLO burn, or a condition that will soon cause impact. Every page includes owner, dashboard, runbook, and first diagnostic query. Avoid paging for isolated errors.</p>
+          <table>
+            <thead><tr><th>Alert</th><th>Example condition</th><th>Why it matters</th></tr></thead>
+            <tbody>
+              <tr><td>Fast SLO burn</td><td>High error-budget burn over short and medium windows, with minimum traffic.</td><td>Page: customer objective will be exhausted quickly.</td></tr>
+              <tr><td>Slow SLO burn</td><td>Sustained lower burn over long windows.</td><td>Ticket/work-hours alert: gradual reliability regression.</td></tr>
+              <tr><td>Checkout failure surge</td><td>Failure ratio above approved baseline with minimum traffic.</td><td>Direct customer/revenue impact and SLO input.</td></tr>
+              <tr><td>Outbox stalled</td><td>Oldest pending event age exceeds workflow tolerance.</td><td>Database state is no longer reaching downstream services.</td></tr>
+              <tr><td>Consumer lag rising</td><td>Lag grows continuously and projected drain time exceeds target.</td><td>Checkout states become stale even if services are “up.”</td></tr>
+              <tr><td>Payment provider degradation</td><td>Timeout/error rate above baseline.</td><td>Money workflow is failing externally.</td></tr>
+              <tr><td>Orders stuck</td><td>Count of non-terminal orders older than maximum workflow age exceeds threshold.</td><td>Saga or compensation is incomplete.</td></tr>
+              <tr><td>PostgreSQL saturation</td><td>Pool wait time and active connections remain high.</td><td>Latency and timeout cascades are likely.</td></tr>
+              <tr><td>Telemetry missing</td><td>Prometheus target absent or logs stop arriving.</td><td>Loss of evidence must itself be visible.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Retention and cost</h3>
+          <p>Define retention intentionally. A reasonable initial self-hosted policy might keep high-resolution Prometheus data for 15–30 days, application logs for 7–14 days, and traces for 3–7 days with sampling. Payment/audit records belong in service databases or dedicated audit storage, not in Loki as the only copy.</p>
+        </article>
+        <aside class="margin-column">
+          <p class="sidenote"><span class="mark">8</span> Recommended addition: Tempo. Without trace storage, Grafana can show metrics and logs but cannot provide a full distributed request/event path.</p>
+          <p class="sidenote"><span class="mark">9</span> Exemplars can connect Prometheus latency histograms to representative trace IDs, enabling a jump from a slow p99 bucket to an actual distributed trace.</p>
+          <p class="sidenote"><span class="mark">10</span> Log sampling may be acceptable for repetitive success logs. Never sample security events, payment failures, state-transition failures, or reconciliation anomalies without an explicit policy.</p>
+        </aside>
+      </section>
+
+      <section id="reliability">
+        <article class="content">
+          <h2><span class="number">10</span>Reliability and failure policy</h2>
+          <p class="lead">Reliability comes from bounded waiting, controlled retry, explicit terminal states, and repair mechanisms—not from assuming dependencies remain available.</p>
+
+          <h3>Timeouts</h3>
+          <p>Every network call carries a context deadline. The Edge public timeout must be longer than its internal gRPC deadline, leaving enough time to map and return errors. Database statements use contexts. Kafka shutdown drains or stops workers within a bounded grace period.</p>
+
+          <h3>Retries</h3>
+          <ul>
+            <li>Retry only transient failures.</li>
+            <li>Use exponential backoff with jitter.</li>
+            <li>Cap attempts and total retry duration.</li>
+            <li>Retry non-idempotent operations only with a stable idempotency key.</li>
+            <li>Do not stack retries at every layer; compounded retries amplify outages.</li>
+          </ul>
+
+          <h3>Retry and dead-letter ownership</h3>
+          <p>A dead-letter topic is a quarantine mechanism, not a trash bin. Each consuming service owns error classification, retry limits, DLQ dashboards, and a runbook. The platform/on-call operator executes redrive tooling; the service owner approves replay after fixing the cause.</p>
+          <table>
+            <thead><tr><th>Failure</th><th>Action</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td>Transient infrastructure</td><td>Bounded retry with exponential backoff and jitter</td><td>Database connection reset, broker leader movement</td></tr>
+              <tr><td>Dependency unavailable</td><td>Pause/back off; alert on lag and age</td><td>Payment provider outage</td></tr>
+              <tr><td>Invalid or unsupported message</td><td>Quarantine immediately; no hot-loop retry</td><td>Unknown required schema semantics</td></tr>
+              <tr><td>Business rejection</td><td>Publish a typed negative result, not DLQ</td><td>Insufficient inventory, definitive payment decline</td></tr>
+              <tr><td>Unknown side effect</td><td>Reconcile before retry or compensation</td><td>Provider timed out after receiving capture</td></tr>
+            </tbody>
+          </table>
+          <p>Quarantined records preserve original topic, partition, offset, key, headers, payload, message ID, consumer, error code, stack/cause summary, attempt count, and first/last failure times. Redrive must:</p>
+          <ol>
+            <li>Record operator, approver, reason, selected messages, and destination.</li>
+            <li>Preserve original key and semantic metadata so ordering and deduplication still work.</li>
+            <li>Replay a small canary batch first.</li>
+            <li>Verify consumer success, resulting state, lag, and absence of duplicate external effects.</li>
+            <li>Audit the final replay outcome and leave failed records quarantined.</li>
+          </ol>
+
+          <h3>Reconciliation</h3>
+          <p>Payment requires a scheduled reconciliation process. It compares local attempts with provider truth and repairs missing webhook outcomes or ambiguous timeout results. Use the same provider reference and idempotency key; never create a second charge merely because the first response was lost. Inventory requires reservation expiry. Order requires a stuck-order detector. These background repair loops are part of the system, not optional cleanup.</p>
+          <pre><code>PROCESSING + provider success       → SUCCEEDED → PaymentSucceeded
+PROCESSING + definitive decline     → FAILED    → PaymentFailed
+PROCESSING + timeout/no provider ID → UNKNOWN   → retry provider lookup
+UNKNOWN + verified webhook success  → SUCCEEDED → PaymentSucceeded
+UNKNOWN beyond operations deadline  → REQUIRES_MANUAL_REVIEW
+
+No UNKNOWN transition directly releases inventory.</code></pre>
+
+          <h3>Graceful lifecycle</h3>
+          <ol>
+            <li>Receive termination signal.</li>
+            <li>Mark readiness false so new traffic stops.</li>
+            <li>Stop accepting new HTTP/gRPC work.</li>
+            <li>Stop claiming new Kafka/outbox work.</li>
+            <li>Allow in-flight transactions to finish within a deadline.</li>
+            <li>Flush telemetry.</li>
+            <li>Close Kafka, gRPC, and database resources.</li>
+          </ol>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Circuit breakers.</strong> Add only after real failure behavior demonstrates benefit. Deadlines, bounded concurrency, and retry discipline are the first line of defense.</p>
+        </aside>
+      </section>
+
+      <section id="security">
+        <article class="content">
+          <h2><span class="number">11</span>Security model</h2>
+          <p class="lead">The public trust boundary ends at Edge, but every internal service still validates that requests arrived through authenticated, controlled channels.</p>
+
+          <h3>Identity flow</h3>
+          <ol>
+            <li>Kratos authenticates the user and issues a session token; Hydra issues OAuth2/OIDC tokens only for clients using an OAuth flow.</li>
+            <li>Edge calls <code>identity-service.ResolveSession</code> over mTLS. Identity verifies the session through Kratos <code>/sessions/whoami</code>.</li>
+            <li>Identity signs an audience-bound, short-lived Ed25519 actor assertion. Edge cannot mint or alter it.</li>
+            <li>Edge opens gRPC with its workload certificate and forwards the assertion. The target verifies the certificate chain, expected Edge identity, assertion signature, issuer, audience, and expiry.</li>
+            <li>Only then does domain code receive actor context; it still enforces ownership and business authorization.</li>
+          </ol>
+
+          <h3>Implemented Edge → Order example</h3>
+          <pre><code>GET /auth/order-caller
+Authorization: Bearer &lt;kratos-session-token&gt;
+
+Edge:
+1. mTLS → identity.v1.IdentityService/ResolveSession
+2. Identity → Kratos /sessions/whoami
+3. Identity returns an Ed25519-signed, 60-second assertion (aud=order-service)
+4. mTLS gRPC → order.v1.OrderIdentityService/GetCaller
+5. Edge forwards only Authorization: Bearer &lt;internal-assertion&gt;
+
+Order:
+1. Require and verify the Edge workload certificate
+2. Reject every other workload identity
+3. Verify assertion signature, issuer, audience, and expiry
+4. Put verified actor context into the Order use case</code></pre>
+          <p>The reference implementation lives in <code>apps/identity-service</code>, <code>apps/edge-api/internal/adapter/identitygrpc</code>, <code>apps/edge-api/internal/adapter/ordergrpc</code>, <code>apps/order-service/internal</code>, and <code>common-rpc/proto/{identity,order}/v1</code>. Local certificates and the Ed25519 signing keypair are generated by <code>deployments/compose/certs/generate.sh</code>.</p>
+
+          <h3>Controls</h3>
+          <ul>
+            <li>TLS at Traefik and mandatory mTLS for internal gRPC. Private networking is defense in depth, not caller authentication.</li>
+            <li>Kratos owns password hashing, recovery, verification, MFA, session lifecycle, and credential policy.</li>
+            <li>Hydra owns refresh-token rotation and OAuth2 token policy when OAuth clients are enabled.</li>
+            <li>Payment card data handled by provider-hosted/tokenized flows; do not store PAN/CVV.</li>
+            <li>Webhook signatures verified against raw request bodies and provider timestamps.</li>
+            <li>Secrets injected through Dokploy secrets/environment, never committed.</li>
+            <li>Database users limited to their owned database.</li>
+            <li>Kafka ACLs restrict producers and consumer groups when supported.</li>
+            <li>Logs redact authorization headers, cookies, passwords, tokens, card details, and sensitive personal fields.</li>
+            <li>Traefik enforces request body limits and coarse rate limits; Edge enforces identity-aware policy where necessary.</li>
+          </ul>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Two credential modes.</strong> The current Kratos session flow is resolved by Identity. A future Hydra JWT flow can be validated by Identity with cached JWKS. In both modes, every internal gRPC hop still requires workload mTLS and target-bound actor assertions.</p>
+        </aside>
+      </section>
+
+      <section id="monorepo">
+        <article class="content">
+          <h2><span class="number">12</span>Monorepo and Moonrepo</h2>
+          <p class="lead">The monorepo centralizes contracts and developer workflows while preserving independent service modules and deployment units.</p>
+          <pre><code>ecommerce/
+├── .moon/
+│   ├── workspace.yml
+│   ├── toolchains.yml
+│   └── tasks/
+│       ├── go.yml
+│       └── proto.yml
+├── apps/
+│   ├── edge-api/
+│   ├── catalog-service/
+│   ├── order-service/
+│   ├── inventory-service/
+│   ├── payment-service/
+│   └── notification-service/
+├── common-rpc/
+│   ├── proto/
+│   ├── gen/
+│   ├── buf.yaml
+│   ├── buf.gen.yaml
+│   └── go.mod
+├── common-events/
+│   ├── proto/
+│   ├── gen/
+│   ├── buf.yaml
+│   ├── buf.gen.yaml
+│   └── go.mod
+├── platform/
+│   └── observability/
+│       └── go.mod
+├── deployments/
+│   ├── compose/
+│   ├── dokploy/
+│   ├── prometheus/
+│   ├── loki/
+│   ├── grafana/
+│   ├── alloy/
+│   └── otel-collector/
+├── go.work
+├── go.work.sum
+├── Makefile
+└── README.md</code></pre>
+
+          <h3>Module policy</h3>
+          <p>Each service has its own <code>go.mod</code>. <code>go.work</code> links modules for local development. This prevents accidental service-internal imports and produces clear Docker build boundaries.</p>
+          <pre><code>Allowed:
+apps/order-service  → common-rpc
+apps/order-service  → common-events
+apps/order-service  → platform/observability
+
+Forbidden:
+apps/order-service  → apps/inventory-service/internal/...
+apps/payment-service → apps/order-service/internal/...</code></pre>
+
+          <h3>Moon project graph</h3>
+          <p>Moon discovers projects under <code>apps/*</code>, contract modules, and selected platform modules. Common inherited tasks eliminate repeated configuration. Project dependencies model code generation and shared modules, not runtime service calls.</p>
+          <table>
+            <thead><tr><th>Task</th><th>Purpose</th><th>Cache behavior</th></tr></thead>
+            <tbody>
+              <tr><td><code>format</code></td><td>Check or apply <code>gofmt</code>.</td><td>Check may cache; write task should not.</td></tr>
+              <tr><td><code>lint</code></td><td>Run Go vet/static analysis and Buf lint where applicable.</td><td>Cached by source/config inputs.</td></tr>
+              <tr><td><code>test</code></td><td>Run package/service tests.</td><td>Cached by code and module inputs.</td></tr>
+              <tr><td><code>test-race</code></td><td>Run Go race detector for service modules.</td><td>CI or explicit local use.</td></tr>
+              <tr><td><code>build</code></td><td>Build service binary.</td><td>Declare binary output for hydration.</td></tr>
+              <tr><td><code>dev</code></td><td>Run Air watcher.</td><td>Persistent server preset; uncached, local only.</td></tr>
+              <tr><td><code>generate</code></td><td>Generate protobuf Go code.</td><td>Inputs are proto/config; outputs are generated files.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Shared platform restraint</h3>
+          <p>Do not begin with large shared <code>logging</code>, <code>config</code>, <code>errors</code>, or <code>database</code> frameworks. Use <code>log/slog</code>, direct environment configuration, and standard context/errors. Share only repeated OpenTelemetry initialization if repetition becomes meaningful. Shared convenience code can silently couple every deployable.</p>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Moon and Make.</strong> Moon is the task graph and source of truth. Keep Make only for a few memorable aliases if desired; do not maintain duplicate task definitions.</p>
+        </aside>
+      </section>
+
+      <section id="development">
+        <article class="content">
+          <h2><span class="number">13</span>Local development with Air</h2>
+          <p class="lead">Daily development should keep stateful infrastructure in containers and run Go services locally through Moon and Air for fast rebuilds and debugging.</p>
+
+          <h3>Daily mode</h3>
+          <pre><code>Docker Compose:
+  PostgreSQL
+  Ory Kratos + Hydra
+  Kafka or Redpanda       # start when working on async workflow
+  Kafka UI (optional)
+  Prometheus
+  Loki
+  Grafana
+  Grafana Alloy
+  OpenTelemetry Collector
+  Tempo
+  Mailpit
+
+Host through Moon + Air:
+  edge-api
+  selected services under active development</code></pre>
+
+          <h3>Day-to-day local workflow</h3>
+          <ol>
+            <li><strong>One-time bootstrap:</strong> install Go, Moon, Air, Buf, Docker/Compose, and a PostgreSQL migration CLI; copy <code>.env.example</code> to an ignored local environment file; create no production secrets locally.</li>
+            <li><strong>Start dependencies:</strong> run the Moon task wrapping <code>docker compose up -d</code>. For protected APIs, start PostgreSQL, Ory Kratos, Ory Hydra, and the active services. Add telemetry and Kafka only when the active slice needs them.</li>
+            <li><strong>Wait for readiness:</strong> verify PostgreSQL plus Kratos/Hydra readiness endpoints, then the active service endpoints. Do not rely only on container “running” state.</li>
+            <li><strong>Apply migrations:</strong> run <code>moon run :migrate</code> for the owning modules. Migrations are explicit tasks, never hidden in application startup.</li>
+            <li><strong>Generate contracts:</strong> after changing Protobuf, run <code>moon run :generate</code>, then Buf lint/breaking checks. Commit source and generated Go output according to the chosen repository policy.</li>
+            <li><strong>Run active services:</strong> use <code>moon run edge-api:dev catalog-service:dev order-service:dev</code>. Moon starts persistent Air tasks; Air rebuilds only the changed service.</li>
+            <li><strong>Exercise the slice:</strong> log in through Edge, then call <code>/auth/order-caller</code> to prove Kratos authentication, user propagation, and Edge → Order mTLS.</li>
+            <li><strong>Inspect evidence:</strong> open Grafana at <code>http://localhost:3000</code>, verify metrics, query structured logs by <code>correlation_id</code>/<code>order_id</code>, and inspect traces when Tempo is enabled.</li>
+            <li><strong>Verify before commit:</strong> run format, lint, affected tests, contract checks, and build through Moon. Run integration tests against containerized PostgreSQL/Kafka for changed adapters.</li>
+            <li><strong>Stop cleanly:</strong> stop Air tasks, then use the infra-down task. Preserve volumes normally; use a separate explicit <code>infra-reset</code> task when destructive reset is intended.</li>
+          </ol>
+          <pre><code># Intended task interface; exact Moon YAML is implemented in Setup Phase
+moon run infra:up
+moon run infra:check
+moon run :migrate
+moon run :generate
+moon run edge-api:dev catalog-service:dev order-service:dev
+
+moon run :format
+moon run :lint
+moon run :test
+moon run :build
+
+moon run infra:down
+# destructive and intentionally separate:
+moon run infra:reset</code></pre>
+
+          <h3>Environment and test data</h3>
+          <ul>
+            <li>Commit <code>.env.example</code> with variable names and safe defaults; ignore real <code>.env.local</code> files.</li>
+            <li>Use fixed local hostnames/service names in Compose, but separate ports for host-run Air processes.</li>
+            <li>Provide idempotent seed tasks for sample categories, products, stock, and a Kratos test identity. Seeds must never run automatically in production.</li>
+            <li>Use Stripe test keys and test cards only. Receive webhooks through Stripe CLI forwarding to the local Payment endpoint when that phase starts.</li>
+            <li>Give each developer/test run isolated idempotency keys and correlation IDs to make traces and replay behavior understandable.</li>
+          </ul>
+
+          <h3>Debugging loop</h3>
+          <pre><code>Public error
+  → copy correlation_id from Edge response/header
+  → Grafana Explore: Loki query by correlation_id
+  → open trace_id from matching structured log
+  → inspect gRPC/Kafka spans in Tempo
+  → inspect order saga row and outbox/inbox only if evidence requires it
+  → fix source boundary, rerun affected Moon task</code></pre>
+
+          <h3>Full integration mode</h3>
+          <p>Run all services and infrastructure in Compose when verifying container networking, health checks, startup order, image behavior, or complete checkout workflows. Do not require full container rebuilds for every source edit.</p>
+
+          <h3>Air convention</h3>
+          <p>Each service owns a small <code>.air.toml</code> describing its command package and temporary binary path. Moon’s inherited <code>dev</code> task runs <code>air</code> in the project directory. Persistent tasks start in parallel.</p>
+
+          <h3>Ports</h3>
+          <table>
+            <thead><tr><th>Component</th><th>Suggested local port</th><th>Exposure</th></tr></thead>
+            <tbody>
+              <tr><td>edge-api HTTP</td><td>8080</td><td>Host/public in production</td></tr>
+              <tr><td>Kratos public/admin</td><td>4433 / 4434</td><td>Public self-service / private admin</td></tr>
+              <tr><td>Hydra public/admin</td><td>4444 / 4445</td><td>Public OAuth2 / private admin</td></tr>
+              <tr><td>identity-service gRPC</td><td>9081</td><td>Private mTLS; no host port in production</td></tr>
+              <tr><td>catalog gRPC</td><td>9083</td><td>Private mTLS</td></tr>
+              <tr><td>order gRPC</td><td>9082</td><td>Private mTLS</td></tr>
+              <tr><td>inventory gRPC/health</td><td>9004</td><td>Internal</td></tr>
+              <tr><td>payment gRPC/health</td><td>9005</td><td>Internal</td></tr>
+              <tr><td>notification health</td><td>9006</td><td>Internal</td></tr>
+              <tr><td>Grafana</td><td>3000</td><td>Local; protected admin route in production</td></tr>
+              <tr><td>Prometheus</td><td>9090</td><td>Internal</td></tr>
+              <tr><td>Loki</td><td>3100</td><td>Internal</td></tr>
+              <tr><td>OTLP gRPC</td><td>4317</td><td>Internal</td></tr>
+              <tr><td>Mailpit UI</td><td>8025</td><td>Local only</td></tr>
+            </tbody>
+          </table>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Startup order is not readiness.</strong> Compose dependency ordering does not prove PostgreSQL, Kafka, or another service is ready. Processes should retry startup connections within a bounded policy and expose readiness accurately.</p>
+        </aside>
+      </section>
+
+      <section id="deployment">
+        <article class="content">
+          <h2><span class="number">14</span>Dokploy and Traefik</h2>
+          <p class="lead">Production exposes Edge plus the required Kratos self-service and Hydra OAuth2 endpoints—and optionally a protected Grafana route. Admin APIs and internal services remain private.</p>
+
+          <h3>Routing</h3>
+          <pre><code>api.shop.example.com   ──HTTPS──► edge-api:8080
+auth.shop.example.com  ──HTTPS──► kratos:4433 / hydra:4444
+ops.shop.example.com   ──HTTPS──► grafana:3000  # protected, optional
+
+Not routed publicly:
+  internal gRPC ports
+  PostgreSQL
+  Kafka
+  Prometheus
+  Loki
+  OTLP collector
+  Tempo</code></pre>
+
+          <h3>Images</h3>
+          <p>Build one image per service using multi-stage builds. The runtime image contains only the compiled binary, CA certificates, timezone data if needed, and a non-root user. Use immutable image tags based on commit SHA. Do not deploy <code>latest</code> as the only identity.</p>
+
+          <h3>Health and rollout</h3>
+          <ul>
+            <li><code>/live</code> means the process event loop is alive.</li>
+            <li><code>/ready</code> means the process can accept its assigned work.</li>
+            <li>Readiness turns false before shutdown.</li>
+            <li>Deploy contract-compatible consumers before producers emitting new required behavior.</li>
+            <li>Run migrations as controlled jobs before or during compatible rollout phases.</li>
+            <li>Keep Kafka consumer group names stable across replicas.</li>
+          </ul>
+
+          <h3>Persistent volumes and backups</h3>
+          <p>PostgreSQL, Kafka, Prometheus, Loki, Grafana, and Tempo require deliberate volume and retention policies. PostgreSQL backups must be automated and periodically restored in a test environment. A backup that has never been restored is an assumption.</p>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Grafana security.</strong> If exposed, place it behind strong authentication and authorization. Prometheus and Loki should remain private data sources.</p>
+        </aside>
+      </section>
+
+      <section id="testing">
+        <article class="content">
+          <h2><span class="number">15</span>Verification strategy</h2>
+          <p class="lead">Test business invariants and failure boundaries. Avoid spending most of the suite on generated protobufs, trivial getters, or behavior guaranteed by Go’s type system.</p>
+
+          <h3>Test layers</h3>
+          <table>
+            <thead><tr><th>Layer</th><th>Purpose</th><th>Examples</th></tr></thead>
+            <tbody>
+              <tr><td>Domain/application</td><td>Fast verification of state transitions and policies using small fake ports.</td><td>Invalid order transitions, money rules, inventory decisions.</td></tr>
+              <tr><td>Adapter integration</td><td>Verify real PostgreSQL transactions, constraints, SQL mapping, and Kafka serialization.</td><td>Concurrent reservation, outbox claim, duplicate inbox insert.</td></tr>
+              <tr><td>Contract</td><td>Protect protobuf compatibility and transport mapping.</td><td>Buf lint/breaking checks, gRPC status mapping.</td></tr>
+              <tr><td>Workflow integration</td><td>Prove a small number of cross-service business journeys.</td><td>Successful checkout, inventory rejection, payment compensation.</td></tr>
+              <tr><td>Operational</td><td>Prove health, telemetry, shutdown, and deployment assumptions.</td><td>Metrics emitted, trace propagated, logs correlated, SIGTERM drained.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Critical scenarios</h3>
+          <ul class="checklist">
+            <li>Successful checkout reaches <code>CONFIRMED</code> and consumes inventory.</li>
+            <li>Insufficient inventory cancels the order without attempting payment.</li>
+            <li>Definitive payment failure causes Order to request reservation release and then reach the defined cancellation state.</li>
+            <li>Provider timeout enters reconciliation and does not release stock or create a second charge.</li>
+            <li>A late success webhook resolves an ambiguous payment exactly once.</li>
+            <li>Concurrent multi-SKU reservations are all-or-nothing and avoid deadlocks through deterministic SKU ordering.</li>
+            <li>Duplicate <code>ReserveInventory</code> does not reserve twice.</li>
+            <li>Duplicate <code>PaymentSucceeded</code> does not confirm twice or duplicate effects.</li>
+            <li>Outbox publish succeeds, process crashes before marking, and replay remains safe.</li>
+            <li>Consumer transaction commits, offset commit fails, and redelivery remains safe.</li>
+            <li>Reservation expires and restores available stock.</li>
+            <li>Payment webhook is duplicated or arrives out of order.</li>
+            <li>A stuck-order reconciliation job identifies and repairs or quarantines the workflow.</li>
+            <li>DLQ canary redrive preserves keys/headers, is audited, and creates no duplicate external effect.</li>
+            <li>Outbox/inbox cleanup retains deduplication through the maximum replay horizon.</li>
+            <li>Trace ID connects Edge, gRPC, Kafka, consumer logs, and relevant spans.</li>
+          </ul>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Real dependencies selectively.</strong> PostgreSQL concurrency and Kafka offset behavior are integration concerns. Mocks cannot prove them.</p>
+        </aside>
+      </section>
+
+      <section id="delivery">
+        <article class="content">
+          <h2><span class="number">16</span>Delivery roadmap</h2>
+          <p class="lead">Build thin vertical slices that prove architecture under real behavior. Do not scaffold seven empty services and call the architecture complete.</p>
+
+          <h3>Smallest initial deployable shape</h3>
+          <pre><code>Required first:
+  edge-api
+  catalog-service
+  order-service
+  PostgreSQL
+  Prometheus + Grafana
+  structured stdout logs collected by Alloy into Loki
+
+Add only with the workflow that needs it:
+  Ory Kratos + Hydra       when protected accounts/OAuth clients are implemented
+  Kafka/Redpanda           when durable inventory workflow begins
+  inventory-service        with reservations
+  payment-service          with provider integration and reconciliation
+  notification-service     after terminal order events exist
+  Tempo                    before diagnosing multi-hop async production flows</code></pre>
+          <p>The target architecture is a direction, not permission to deploy empty boundaries. Keep a capability in an existing service until at least one extraction trigger exists:</p>
+          <ul>
+            <li>A distinct team owns its roadmap and on-call responsibility.</li>
+            <li>It needs materially different scaling or deployment cadence.</li>
+            <li>Fault isolation protects a critical path.</li>
+            <li>Security/compliance requires a stronger boundary.</li>
+            <li>Measured throughput, contention, or release coupling justifies the operational cost.</li>
+          </ul>
+
+          <div class="phase">
+            <div class="phase-id">PHASE 1</div>
+            <div>
+              <h3>Setup phase — establish the paved road</h3>
+              <p><strong>Goal:</strong> one repeatable repository and local environment where an empty service can be generated, run, observed, tested, and built without inventing new conventions.</p>
+              <h4>Implement in order</h4>
+              <ol>
+                <li>Write ADRs for boundaries, Ory Kratos/Hydra, internal mTLS, Stripe PaymentIntents, money representation, Order-owned carts/saga, Kafka/Redpanda, and telemetry topology.</li>
+                <li>Create Moon workspace, <code>go.work</code>, shared Go/Proto tasks, and only <code>edge-api</code>, <code>catalog-service</code>, <code>order-service</code>, <code>common-rpc</code>, and observability modules.</li>
+                <li>Create Buf configuration and initial health/catalog/order Protobuf contracts. Add lint and breaking-change tasks.</li>
+                <li>Create local Compose for PostgreSQL, Ory Kratos, Ory Hydra, and the active observability components. Generate development mTLS certificates; delay Kafka until checkout needs it.</li>
+                <li>Create isolated databases/users and explicit migration tasks. Add idempotent local seed tasks.</li>
+                <li>Standardize <code>log/slog</code> JSON, correlation IDs, Prometheus endpoints, OpenTelemetry resource attributes, <code>/live</code>, <code>/ready</code>, graceful shutdown, and Air configuration.</li>
+                <li>Create multi-stage Dockerfiles, CI tasks for format/lint/test/build/Buf checks, and a backup/restore script for local PostgreSQL proof.</li>
+              </ol>
+              <h4>Exit criteria</h4>
+              <ul class="checklist">
+                <li><code>moon run infra:up</code> starts healthy dependencies from a clean machine with documented prerequisites.</li>
+                <li>Edge calls Order over mTLS; Order rejects missing or wrong workload certificates.</li>
+                <li>Kratos login produces a session token; Identity resolves it and issues a target-bound actor assertion; Edge forwards that assertion to Order without forwarding the user credential.</li>
+                <li>All migrations, generation, verification, build, shutdown, and destructive reset tasks are documented and runnable.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-id">PHASE 2</div>
+            <div>
+              <h3>MVP phase — complete one safe purchase</h3>
+              <p><strong>Goal:</strong> a user can authenticate, browse products, manage a cart, submit checkout idempotently, reserve stock, pay with Stripe test mode, and observe a confirmed or cancelled order.</p>
+              <h4>Implement in order</h4>
+              <ol>
+                <li>Catalog: categories, products, variants/SKUs, publication state, one configured currency, list/read/admin mutation APIs, migrations, and seed data.</li>
+                <li>Order cart: create/read/update/delete cart items, optimistic cart version, cart expiry, ownership checks, and Catalog price revalidation.</li>
+                <li>Order creation: immutable item/price snapshots, zero-valued future discount/tax/shipping components, checkout idempotency key, <code>202 Accepted</code>, polling endpoint, and state history.</li>
+                <li>Add Redpanda/Kafka through Dokploy-compatible Compose, command/event Protobufs, Order outbox publisher, inbox deduplication, and consumer lag/outbox dashboards.</li>
+                <li>Inventory: stock records, all-or-nothing sorted multi-SKU reservation, expiry, release/confirm commands, and concurrency integration tests.</li>
+                <li>Payment: Stripe test PaymentIntent with immediate capture after reservation, stable idempotency key, signed webhook verification, unknown/reconciliation states, provider lookup worker, and refund capability.</li>
+                <li>Order saga: durable expected-step state, command publication, result handling, compensation, stuck-saga detector, and customer-visible terminal outcome.</li>
+                <li>Notification: consume <code>OrderConfirmed</code>/<code>OrderCancelled</code>, send through Mailpit locally, and deduplicate delivery.</li>
+              </ol>
+              <h4>MVP restrictions</h4>
+              <p>One warehouse, one configured currency, no discounts, no calculated tax, no shipping-rate engine, no partial fulfillment, and immediate capture. The schema already stores currency and amount components so these restrictions do not corrupt future expansion.</p>
+              <h4>Exit criteria</h4>
+              <ul class="checklist">
+                <li>Happy path and inventory rejection work end to end through Edge.</li>
+                <li>Definitive payment failure releases inventory; ambiguous timeout does not.</li>
+                <li>Duplicate checkout, Kafka message, and Stripe webhook produce no duplicate order, reservation, or charge.</li>
+                <li>Every checkout is diagnosable by correlation ID, order ID, metrics, logs, and trace.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-id">PHASE 3</div>
+            <div>
+              <h3>Fully implemented — expand commerce capabilities</h3>
+              <p><strong>Goal:</strong> complete the planned domain and operational features while preserving old order truth and contract compatibility.</p>
+              <h4>Implement by business priority</h4>
+              <ol>
+                <li>Discount adjustments: coupon definitions, eligibility, usage limits, deterministic calculation, and immutable order adjustment snapshots.</li>
+                <li>Tax: address/jurisdiction inputs, provider or internal calculator port, quote version, line-level tax breakdown, and refund tax treatment.</li>
+                <li>Shipping: customer addresses, shipping methods/rates, shipment cost snapshots, and eventual fulfillment boundary when actual shipment work exists.</li>
+                <li>Multiple currencies: Catalog price books, checkout currency selection, no implicit floating-point conversion, provider-supported currency validation, and currency-specific refunds/reporting.</li>
+                <li>Payment evolution: manual authorize/capture when fulfillment requires it, partial captures/refunds, authorization-expiry handling, and stronger reconciliation dashboards.</li>
+                <li>Customer experience: guest-cart merge if needed, saved addresses, order history, cancellation/refund requests, and notification preferences.</li>
+                <li>Operations: admin stock adjustments with audit records, DLQ canary redrive tool, retention jobs, runbooks, SLO burn alerts, load tests, and failure exercises.</li>
+              </ol>
+              <h4>Extraction rule</h4>
+              <p>Keep carts inside Order and one-warehouse inventory until ownership, independent scaling, fault isolation, or fulfillment requirements justify extraction. Add a separate pricing, tax, shipping, cart, or fulfillment service only when a measured boundary exists—not merely because large companies have one.</p>
+              <h4>Exit criteria</h4>
+              <ul class="checklist">
+                <li>Every enabled capability has a versioned contract, migration, invariant tests, dashboard, alert/runbook, and rollback strategy.</li>
+                <li>Historical orders never change when products, prices, discounts, taxes, exchange assumptions, or shipping rules change.</li>
+                <li>Load and failure tests meet approved SLOs with no unexplained money or inventory divergence.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="phase">
+            <div class="phase-id">PHASE 4</div>
+            <div>
+              <h3>Deployment phase — controlled real transactions</h3>
+              <p><strong>Goal:</strong> promote the verified system through Dokploy without exposing private infrastructure or risking irreversible payment/data errors.</p>
+              <h4>Implement in order</h4>
+              <ol>
+                <li>Create separate staging and production Dokploy projects, networks, domains, volumes, credentials, Stripe accounts/keys, Ory projects/clients, an internal certificate authority, and Grafana access.</li>
+                <li>Deploy PostgreSQL and Redpanda/Kafka with persistent storage, resource limits, monitoring, automated backups, and tested restore instructions. Prefer managed equivalents if real revenue exceeds your ability to operate them.</li>
+                <li>Deploy Loki, Grafana, Alloy, Prometheus, Tempo, and OTel Collector privately; expose Grafana only behind strong authentication.</li>
+                <li>Deploy Kratos and Hydra at <code>auth...</code>; keep both admin APIs private; configure redirects, SMTP, MFA, OAuth clients, token policy, backups, and secret rotation.</li>
+                <li>Run expand migrations as explicit jobs. Deploy consumers before producers when new messages are introduced.</li>
+                <li>Issue short-lived workload certificates, deploy internal services with mandatory mTLS and per-RPC caller policy, then deploy Edge. Publish only Edge, required Kratos/Hydra public endpoints, narrowly routed Stripe webhooks, and protected Grafana.</li>
+                <li>Run staging smoke, saga, duplicate, compensation, backup-restore, shutdown, and DLQ replay checks. Then use Stripe live-mode readiness and webhook checks.</li>
+                <li>Start production with low limits and manual observation. Confirm dashboards, SLOs, alerts, reconciliation, refunds, and support/runbook ownership before increasing traffic.</li>
+              </ol>
+              <h4>Release sequence</h4>
+              <pre><code>backup/restore proof
+  → expand migrations
+  → compatible consumers
+  → internal services
+  → edge-api
+  → synthetic checkout
+  → Stripe/webhook verification
+  → low-volume real transaction
+  → observe and reconcile
+  → gradual traffic increase</code></pre>
+              <h4>Exit criteria</h4>
+              <ul class="checklist">
+                <li>A real low-value transaction can be purchased, observed, refunded, reconciled, and audited.</li>
+                <li>Rollback does not require reversing a destructive migration.</li>
+                <li>On-call knows how to diagnose a stuck order, provider ambiguity, inventory divergence, DLQ record, and telemetry outage.</li>
+              </ul>
+            </div>
+          </div>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Exit criteria.</strong> Each phase ends with a working business path and operational proof—not only folders, generated clients, or deployment manifests.</p>
+        </aside>
+      </section>
+
+      <section id="decisions">
+        <article class="content">
+          <h2><span class="number">17</span>Decision register</h2>
+          <p class="lead">These are the proposed defaults. Items marked “confirm” require a product or operational decision before implementation.</p>
+          <table>
+            <thead><tr><th>Decision</th><th>Proposed choice</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Public API</td><td>Gin REST/JSON through Edge only</td><td>Proposed</td></tr>
+              <tr><td>Internal synchronous protocol</td><td>gRPC with Protobuf over mandatory workload mTLS</td><td>Implemented Edge → Order example</td></tr>
+              <tr><td>Async transport</td><td>Kafka or Kafka-compatible Redpanda for directed commands and published events</td><td>Confirm implementation</td></tr>
+              <tr><td>Message encoding</td><td>Versioned Protobuf with common metadata</td><td>Proposed</td></tr>
+              <tr><td>Consistency model</td><td>Order-orchestrated saga with commands, result events, and compensation</td><td>Proposed</td></tr>
+              <tr><td>Delivery semantics</td><td>At-least-once plus idempotent effects</td><td>Proposed</td></tr>
+              <tr><td>Data platform</td><td>One PostgreSQL cluster, isolated service databases/users initially</td><td>Proposed</td></tr>
+              <tr><td>Money</td><td>Integer minor units + ISO currency</td><td>Proposed</td></tr>
+              <tr><td>Task orchestration</td><td>Moonrepo source of truth; minimal Make aliases</td><td>Proposed</td></tr>
+              <tr><td>Development reload</td><td>Air per Go service, launched by Moon</td><td>Proposed</td></tr>
+              <tr><td>Metrics</td><td>Prometheus</td><td>Requested</td></tr>
+              <tr><td>Logs</td><td>Structured stdout → Grafana Alloy → Loki</td><td>Requested/proposed</td></tr>
+              <tr><td>Visualization</td><td>Grafana</td><td>Requested</td></tr>
+              <tr><td>Tracing</td><td>Application OTLP → OpenTelemetry Collector → Tempo</td><td>Recommended</td></tr>
+              <tr><td>Checkout coordination</td><td>Order owns durable saga state and issues directed commands</td><td>Proposed</td></tr>
+              <tr><td>Payment ambiguity</td><td>Unknown/reconciliation states; timeout is never definitive failure</td><td>Proposed</td></tr>
+              <tr><td>Reliability objectives</td><td>99.9% order acceptance; 99.5% terminal within 5 minutes; initial RPO ≤15m/RTO ≤4h</td><td>Starting defaults</td></tr>
+              <tr><td>Project intent</td><td>Learning architecture built with controls suitable for eventual real transactions</td><td>Confirmed</td></tr>
+              <tr><td>Authentication</td><td>Ory Kratos for identity/session; Hydra for OAuth2/OIDC; Edge authenticates users and services authenticate each other with mTLS</td><td>Confirmed</td></tr>
+              <tr><td>Payment provider</td><td>Stripe PaymentIntents; test mode first, live mode after deployment gates</td><td>Proposed default</td></tr>
+              <tr><td>Payment capture</td><td>Immediate capture for MVP; schema supports later authorize-then-capture</td><td>Proposed default</td></tr>
+              <tr><td>Inventory location</td><td>One warehouse initially; no multi-location allocation yet</td><td>Confirmed</td></tr>
+              <tr><td>Cart ownership</td><td>Order service owns carts as a separate aggregate from orders</td><td>Confirmed</td></tr>
+              <tr><td>Commerce expansion</td><td>Amounts/adjustments support later discounts, tax, shipping, and multiple currencies</td><td>Confirmed direction</td></tr>
+              <tr><td>Infrastructure control plane</td><td>Dokploy manages deployment; architecture still defines persistent data, networking, backup, and readiness requirements</td><td>Confirmed</td></tr>
+              <tr><td>Reservation timeout</td><td>Configuration owned by Inventory/product policy</td><td>Confirm duration</td></tr>
+              <tr><td>Client workflow updates</td><td>Polling first</td><td>Proposed</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Resolved scope and safe defaults</h3>
+          <ol>
+            <li><strong>Intent:</strong> learning first, but implementation must be capable of controlled real transactions.</li>
+            <li><strong>Identity:</strong> self-hosted Ory Kratos for authentication and Hydra for OAuth2/OIDC. No custom password or token implementation.</li>
+            <li><strong>Payment:</strong> Stripe PaymentIntents, immediate capture for MVP after inventory reservation. Authorize-then-capture remains a supported later evolution for fulfillment.</li>
+            <li><strong>Inventory:</strong> one warehouse initially.</li>
+            <li><strong>Commerce scope:</strong> discounts, tax, shipping, and multi-currency are not MVP features, but immutable amount components and adjustments are reserved in the model.</li>
+            <li><strong>Cart:</strong> Order owns carts; cart and order remain separate aggregates.</li>
+            <li><strong>Infrastructure:</strong> Dokploy handles deployment; use its private networks and persistent services. Choose Redpanda when self-hosting for simpler Kafka-compatible operation unless Dokploy’s environment already provides Kafka.</li>
+            <li><strong>Initial reliability targets:</strong> use the template SLOs below until traffic teaches better values.</li>
+          </ol>
+          <table>
+            <thead><tr><th>Target</th><th>Starting value</th><th>Why</th></tr></thead>
+            <tbody>
+              <tr><td>Order acceptance availability</td><td>99.9% rolling 30 days</td><td>Reasonable learning-production target without pretending to have multi-region HA.</td></tr>
+              <tr><td>Accepted checkout to terminal state</td><td>99.5% within 5 minutes</td><td>Allows asynchronous/provider delay while exposing stuck workflows.</td></tr>
+              <tr><td>Public API latency</td><td>p95 under 500 ms excluding asynchronous completion</td><td>Initial target to validate under load, not a guaranteed business promise.</td></tr>
+              <tr><td>Recovery objectives</td><td>RPO ≤ 15 minutes; RTO ≤ 4 hours initially</td><td>Practical starting point for a small self-hosted system; improve before meaningful revenue.</td></tr>
+              <tr><td>Money correctness</td><td>No unexplained divergence after reconciliation window</td><td>Correctness is not traded for availability.</td></tr>
+            </tbody>
+          </table>
+          <p>Revisit these targets after load testing and the first production-like traffic. Real revenue may justify managed PostgreSQL/Kafka, stronger redundancy, shorter RPO/RTO, and formal on-call coverage.</p>
+
+          <h3>Research basis</h3>
+          <p>This plan adapts established guidance rather than copying any one company’s topology. Large-company systems reflect their traffic, teams, regulation, and years of operational tooling; this document keeps the underlying reliability patterns while delaying scale-specific machinery until measurements justify it.</p>
+          <table>
+            <thead><tr><th>Source</th><th>Guidance applied here</th></tr></thead>
+            <tbody>
+              <tr><td><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html">AWS — Transactional outbox</a></td><td>Commit business state and outgoing message atomically; expect duplicate publication.</td></tr>
+              <tr><td><a href="https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/saga-orchestration.html">AWS — Saga orchestration</a></td><td>Use an explicit coordinator when workflow order and compensation become complex.</td></tr>
+              <tr><td><a href="https://microservices.io/patterns/communication-style/idempotent-consumer.html">Microservices.io — Idempotent consumer</a></td><td>Persist processed-message identity with business effects.</td></tr>
+              <tr><td><a href="https://stripe.com/blog/idempotency">Stripe — API idempotency</a></td><td>Make retries safe through stable client/provider idempotency identities.</td></tr>
+              <tr><td><a href="https://shopify.engineering/building-resilient-payment-systems">Shopify — Resilient payment systems</a></td><td>Treat provider ambiguity, retry safety, and reconciliation as core payment behavior.</td></tr>
+              <tr><td><a href="https://sre.google/sre-book/monitoring-distributed-systems/">Google SRE — Monitoring distributed systems</a></td><td>Measure customer-visible latency, traffic, errors, and saturation; alert on impact.</td></tr>
+              <tr><td><a href="https://prometheus.io/docs/practices/instrumentation/">Prometheus — Instrumentation</a></td><td>Use bounded labels, counters, and histograms that describe system behavior.</td></tr>
+              <tr><td><a href="https://grafana.com/docs/loki/latest/get-started/labels/bp-labels/">Grafana Loki — Label practices</a></td><td>Keep indexed labels low-cardinality; query business identifiers as structured fields.</td></tr>
+              <tr><td><a href="https://opentelemetry.io/docs/specs/semconv/messaging/kafka/">OpenTelemetry — Kafka conventions</a></td><td>Propagate and describe trace context across asynchronous producer/consumer boundaries.</td></tr>
+              <tr><td><a href="https://netflixtechblog.com/building-netflixs-distributed-tracing-infrastructure-bb856c319304">Netflix — Distributed tracing</a></td><td>Correlate evidence across many network hops rather than relying on isolated service logs.</td></tr>
+              <tr><td><a href="https://engineering.atspotify.com/2020/08/how-we-use-golden-paths-to-solve-fragmentation-in-our-software-ecosystem">Spotify — Golden paths</a></td><td>Standardize the paved road for service tasks and telemetry without forcing one shared domain framework.</td></tr>
+            </tbody>
+          </table>
+
+          <h3>Concrete next steps</h3>
+          <ol>
+            <li>Record ADRs for Ory Kratos/Hydra, workload mTLS and certificate rotation, Stripe capture, Order-owned carts, Kafka choice, and initial SLO/RPO/RTO.</li>
+            <li>Follow the four implementation phases in order; do not create later services during Setup unless their active slice requires them.</li>
+            <li>Define Order saga, Payment, Inventory, and Reservation state machines—including ambiguous payment and late-message transitions.</li>
+            <li>Complete Hydra Authorization Code + PKCE only when needed; copy the implemented Edge → Order mTLS pattern to each internal gRPC boundary with explicit caller ACLs.</li>
+            <li>Define separate command and event contracts, topics, keys, consumer groups, deadlines, and result mappings.</li>
+            <li>Define atomic multi-SKU reservation SQL and concurrency tests.</li>
+            <li>Approve outbox/inbox retention and DLQ ownership/redrive runbooks.</li>
+            <li>Approve baseline SLIs, SLO targets, error-budget policy, dashboards, and burn-rate alerts.</li>
+            <li>Define Moon projects, module relationships, and forbidden imports.</li>
+            <li>Define local Compose networks, volumes, credentials, Alloy/Loki, Prometheus/Grafana, and trace wiring.</li>
+            <li>Deliver the Catalog→Edge→Order vertical slice before introducing Kafka workflow complexity.</li>
+          </ol>
+        </article>
+        <aside class="margin-column">
+          <p class="margin-note"><strong>Document status.</strong> This is an architecture plan, not an implementation claim. Details should change when measured behavior or clarified product requirements contradict an assumption.</p>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p><strong>Ecommerce Architecture Field Guide.</strong><br>A standalone Tufte-inspired planning document for the <code>ecommerce-go</code> monorepo.</p>
+      <p>Designed for reading, review, printing, and conversion into ADRs and implementation phases.</p>
+    </footer>
+  </div>
+</body>
+</html>

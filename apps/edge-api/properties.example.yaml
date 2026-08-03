@@ -2,14 +2,16 @@ server:
   port: 8080
   log_level: info
 
-kratos:
-  public_url: http://localhost:4433
-  admin_url: http://localhost:4434
+identity:
+  grpc_target: localhost:9081
+  tls_server_name: identity-service.internal
+  tls_cert_file: ../../deployments/compose/certs/edge-api.crt
+  tls_key_file: ../../deployments/compose/certs/edge-api.key
+  tls_ca_file: ../../deployments/compose/certs/ca.crt
 
-hydra:
-  public_url: http://localhost:4444
-  admin_url: http://localhost:4445
-  client_id: edge-api
-  client_secret: change-me
-  redirect_uris:
-    - http://localhost:8080/auth/callback
+order:
+  grpc_target: localhost:9082
+  tls_server_name: order-service.internal
+  tls_cert_file: ../../deployments/compose/certs/edge-api.crt
+  tls_key_file: ../../deployments/compose/certs/edge-api.key
+  tls_ca_file: ../../deployments/compose/certs/ca.crt

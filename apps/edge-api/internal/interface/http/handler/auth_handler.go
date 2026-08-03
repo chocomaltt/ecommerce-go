@@ -1,197 +1,139 @@
-// Package handler contains HTTP handlers for the auth domain.
+// Package handler maps Edge HTTP authentication endpoints to identity ports.
 package handler
 
 import (
 	"net/http"
 
+	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/interface/http/middleware"
+	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/interface/http/response"
+	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/port"
+	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/shared/util"
 	"github.com/gin-gonic/gin"
 	"github.com/sirupsen/logrus"
-
-	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/interface/http/response"
-	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/shared/util"
-	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/usecase/auth"
 )
 
 type RegisterRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8"`
 }
-
 type LoginRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required"`
 }
-
 type userResponse struct {
 	ID    string `json:"id"`
 	Email string `json:"email"`
 }
-
 type authResponse struct {
-	User         *userResponse `json:"user"`
-	SessionToken string        `json:"session_token"`
+	User         userResponse `json:"user"`
+	SessionToken string       `json:"session_token"`
 }
-
 type AuthHandler struct {
-	auth *auth.AuthService
+	identity port.IdentityService
+	orders   port.OrderService
 }
 
-func NewAuthHandler(auth *auth.AuthService) *AuthHandler {
-	return &AuthHandler{auth: auth}
+func NewAuthHandler(identity port.IdentityService, orders port.OrderService) *AuthHandler {
+	return &AuthHandler{identity: identity, orders: orders}
 }
-
-// Register godoc
-// @Summary Register a new user
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Router /auth/register [post]
 func (h *AuthHandler) Register(c *gin.Context) {
 	req, err := util.GetBody[RegisterRequest](c, "body")
 	if err != nil {
 		response.BadRequest(c, "invalid request", err)
 		return
 	}
-
-	user, token, err := h.auth.Register(c.Request.Context(), req.Email, req.Password)
+	result, err := h.identity.Register(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
-		logrus.WithError(err).Warn("registration failed")
 		response.BadRequest(c, "registration failed", err)
 		return
 	}
-
-	response.Created(c, "user registered successfully", authResponse{
-		User:         toUserResponse(user),
-		SessionToken: token,
-	})
+	response.Created(c, "user registered successfully", authResponse{User: toUser(result.User), SessionToken: result.SessionToken})
 }
-
-// Login godoc
-// @Summary Login user
-// @Tags Auth
-// @Accept json
-// @Produce json
-// @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	req, err := util.GetBody[LoginRequest](c, "body")
 	if err != nil {
 		response.BadRequest(c, "invalid request", err)
 		return
 	}
-
-	user, token, err := h.auth.Login(c.Request.Context(), req.Email, req.Password)
+	result, err := h.identity.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
-		logrus.WithError(err).Warn("login failed")
 		response.Unauthorized(c, "unauthorized", err)
 		return
 	}
-
-	response.OK(c, "user logged in successfully", authResponse{
-		User:         toUserResponse(user),
-		SessionToken: token,
-	})
+	response.OK(c, "user logged in successfully", authResponse{User: toUser(result.User), SessionToken: result.SessionToken})
 }
-
-// Logout godoc
-// @Summary Logout user
-// @Tags Auth
-// @Security BearerAuth
-// @Router /auth/logout [post]
 func (h *AuthHandler) Logout(c *gin.Context) {
-	// Session tokens are not revocable client-side; the client drops it.
-	response.OK(c, "user logged out successfully", nil)
-}
-
-// Me godoc
-// @Summary Current user
-// @Tags Auth
-// @Security BearerAuth
-// @Router /auth/me [get]
-func (h *AuthHandler) Me(c *gin.Context) {
-	user, err := util.GetBody[auth.User](c, "user")
-	if err != nil {
-		response.BadRequest(c, "invalid request", err)
+	token, ok := middleware.Token(c)
+	if !ok {
+		response.Unauthorized(c, "unauthorized", nil)
 		return
 	}
-	response.OK(c, "user fetched successfully", toUserResponse(&user))
+	if err := h.identity.Logout(c.Request.Context(), token); err != nil {
+		response.Unauthorized(c, "unauthorized", nil)
+		return
+	}
+	response.OK(c, "user logged out successfully", nil)
 }
-
-// HydraLogin godoc
-// @Summary Hydra login callback
-// @Tags Auth
-// @Router /auth/hydra/login [get]
+func (h *AuthHandler) Me(c *gin.Context) {
+	session, ok := middleware.Session(c)
+	if !ok {
+		response.Unauthorized(c, "unauthorized", nil)
+		return
+	}
+	response.OK(c, "user fetched successfully", toUser(session.User))
+}
+func (h *AuthHandler) OrderCaller(c *gin.Context) {
+	session, ok := middleware.Session(c)
+	if !ok {
+		response.Unauthorized(c, "unauthorized", nil)
+		return
+	}
+	caller, err := h.orders.GetCaller(c.Request.Context(), session.ActorAssertion)
+	if err != nil {
+		logrus.WithError(err).Error("order identity")
+		response.InternalServerError(c, err)
+		return
+	}
+	response.OK(c, "authenticated gRPC caller", gin.H{"user_id": caller.UserID, "email": caller.Email, "caller_service": caller.Service})
+}
 func (h *AuthHandler) HydraLogin(c *gin.Context) {
 	challenge := c.Query("login_challenge")
 	if challenge == "" {
-		response.BadRequest(c, "invalid request", auth.ErrInvalidRequest)
+		response.BadRequest(c, "invalid request", nil)
 		return
 	}
-
-	redirect, err := h.auth.HydraLogin(c.Request.Context(), challenge, bearerToken(c))
+	token, _ := middleware.Token(c)
+	redirect, err := h.identity.HydraLogin(c.Request.Context(), challenge, token)
 	if err != nil {
-		logrus.WithError(err).Error("hydra login")
-		if err == auth.ErrNotAuthenticated || err == auth.ErrInvalidSession {
-			response.Unauthorized(c, "unauthorized", err)
-			return
-		}
-		response.InternalServerError(c, err)
+		response.Unauthorized(c, "unauthorized", nil)
 		return
 	}
-
 	c.Redirect(http.StatusFound, redirect)
 }
-
-// HydraConsent godoc
-// @Summary Hydra consent callback
-// @Tags Auth
-// @Router /auth/hydra/consent [get]
 func (h *AuthHandler) HydraConsent(c *gin.Context) {
 	challenge := c.Query("consent_challenge")
 	if challenge == "" {
-		response.BadRequest(c, "invalid request", auth.ErrInvalidRequest)
+		response.BadRequest(c, "invalid request", nil)
 		return
 	}
-
-	redirect, err := h.auth.HydraConsent(c.Request.Context(), challenge)
+	redirect, err := h.identity.HydraConsent(c.Request.Context(), challenge)
 	if err != nil {
-		logrus.WithError(err).Error("hydra consent")
 		response.InternalServerError(c, err)
 		return
 	}
-
 	c.Redirect(http.StatusFound, redirect)
 }
-
-// HydraLogout godoc
-// @Summary Hydra logout callback
-// @Tags Auth
-// @Router /auth/hydra/logout [get]
 func (h *AuthHandler) HydraLogout(c *gin.Context) {
 	challenge := c.Query("logout_challenge")
 	if challenge == "" {
-		response.BadRequest(c, "invalid request", auth.ErrInvalidRequest)
+		response.BadRequest(c, "invalid request", nil)
 		return
 	}
-
-	redirect, err := h.auth.HydraLogout(c.Request.Context(), challenge)
+	redirect, err := h.identity.HydraLogout(c.Request.Context(), challenge)
 	if err != nil {
-		logrus.WithError(err).Error("hydra logout")
 		response.InternalServerError(c, err)
 		return
 	}
-
 	c.Redirect(http.StatusFound, redirect)
 }
-
-func toUserResponse(u *auth.User) *userResponse {
-	return &userResponse{ID: u.ID, Email: u.Email}
-}
-
-func bearerToken(c *gin.Context) string {
-	raw, ok := c.Get("accessToken")
-	if !ok {
-		return ""
-	}
-	token, _ := raw.(string)
-	return token
-}
+func toUser(user port.User) userResponse { return userResponse{ID: user.ID, Email: user.Email} }
