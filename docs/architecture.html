@@ -530,10 +530,10 @@
               <div class="node sync span-4"><strong>order-service</strong><small>Checkout, verifies actor assertions, order state, outbox</small></div>
             </div>
             <div class="arch-row">
-              <div class="node sync span-4"><strong>Ory Kratos + Hydra</strong><small>Identity, credentials, sessions, OAuth2/OIDC, consent, token issuance</small></div>
+              <div class="node sync span-4"><strong>Ory Kratos</strong><small>Identity, credentials, sessions, recovery, verification, MFA</small></div>
             </div>
             <div class="arch-row">
-              <div class="node data span-4"><strong>kratos_db + hydra_db</strong><small>Ory-owned identity, session, OAuth2, and consent state</small></div>
+              <div class="node data span-4"><strong>kratos_db</strong><small>Kratos-owned identity, credential, and session state</small></div>
               <div class="node data span-4"><strong>catalog_db</strong><small>Products, categories, variants, prices</small></div>
               <div class="node data span-4"><strong>order_db</strong><small>Orders, items, outbox, processed events</small></div>
             </div>
@@ -588,21 +588,20 @@
           <p class="lead">Each service is defined by the business decisions it alone may make—not by a database table or API route.</p>
 
           <h3>edge-api</h3>
-          <p>The Edge is the only internet-facing application. It terminates the public API contract and translates public REST requests into private gRPC calls. It validates access tokens locally, attaches trusted identity metadata, enforces coarse authorization, propagates request context, and maps internal errors into stable public error responses.</p>
+          <p>The Edge is the only internet-facing application. It terminates the public API contract and translates public REST requests into private gRPC calls. It asks Identity to resolve client sessions, forwards only Identity-issued actor assertions, propagates request context, and maps internal errors into stable public error responses.</p>
           <p><strong>It must not</strong> access service databases, implement checkout rules, consume business events, or become a second domain layer.</p>
 
           <h4>When Catalog becomes a checkout availability risk</h4>
           <p>Start with Order calling Catalog synchronously because it is the shortest correct design. If measurements later show that Catalog latency or availability harms checkout, Catalog can publish <code>ProductPublished</code>, <code>ProductPriceChanged</code>, and <code>ProductUnpublished</code> events. Order may then maintain a minimal local sellable-product projection. Do not build this projection speculatively: it introduces replication lag, replay, backfill, and reconciliation work.</p>
 
           <h3>identity-service: application boundary around Ory</h3>
-          <p><code>identity-service</code> is a private gRPC application service. It owns registration/login/logout orchestration, Kratos session resolution, Hydra login/consent callbacks, and issuance of short-lived signed internal actor assertions. Only the Edge workload certificate may invoke its RPCs.</p>
-          <p>Use self-hosted <a href="https://www.ory.sh/kratos/docs/">Ory Kratos</a> for identities, credentials, login, registration, recovery, verification, MFA, and sessions. Use <a href="https://www.ory.sh/hydra/docs/">Ory Hydra</a> only for OAuth 2.0/OpenID Connect clients, consent, access tokens, refresh tokens, scopes, and audiences. The application never stores passwords or duplicates Ory session state.</p>
+          <p><code>identity-service</code> is a private gRPC application service. It owns registration/login/logout orchestration, Kratos session resolution, and issuance of short-lived signed internal actor assertions. Only the Edge workload certificate may invoke its RPCs.</p>
+          <p>Use self-hosted <a href="https://www.ory.sh/kratos/docs/">Ory Kratos</a> for identities, credentials, login, registration, recovery, verification, MFA, and sessions. The application never stores passwords or duplicates Ory session state.</p>
           <p>For a protected request, Edge sends the client session token to Identity over mTLS. Identity calls Kratos <code>/sessions/whoami</code>, then signs a 60-second Ed25519 actor assertion for the target audience. Edge forwards that assertion—not the Kratos credential—to the destination service over a separate mTLS connection.</p>
           <table>
             <thead><tr><th>Component</th><th>Owns</th><th>Does not own</th><th>Decision</th></tr></thead>
             <tbody>
-              <tr><td>Ory Kratos</td><td>Identity, credentials, self-service flows, MFA, sessions.</td><td>OAuth2 clients, scopes, audiences, access-token issuance.</td><td><strong>Authentication authority</strong></td></tr>
-              <tr><td>Ory Hydra</td><td>OAuth2/OIDC protocol, clients, consent, access and refresh tokens.</td><td>Passwords, user profiles, login UI.</td><td>Use when standards-based tokens are needed.</td></tr>
+              <tr><td>Ory Kratos</td><td>Identity, credentials, self-service flows, MFA, sessions.</td><td>Application authorization and service-to-service trust.</td><td><strong>Authentication authority</strong></td></tr>
               <tr><td>identity-service</td><td>Auth orchestration and short-lived internal actor assertions.</td><td>Passwords, credential storage, external session persistence.</td><td>Private application boundary over mTLS.</td></tr>
             </tbody>
           </table>
@@ -1014,7 +1013,7 @@ LIMIT 100;</code></pre>
           <table>
             <thead><tr><th>Database</th><th>Owned records</th><th>Critical constraints</th></tr></thead>
             <tbody>
-              <tr><td><code>kratos_db</code> / <code>hydra_db</code></td><td>Ory-owned identities, credentials, sessions, OAuth2 clients, consent, and tokens</td><td>Managed only by Ory migrations; isolated users and backups.</td></tr>
+              <tr><td><code>kratos_db</code></td><td>Kratos-owned identities, credentials, and sessions</td><td>Managed only by Kratos migrations; isolated users and backups.</td></tr>
               <tr><td><code>catalog_db</code></td><td>Products, categories, variants, prices</td><td>Unique SKU; currency/amount validity; publication invariants.</td></tr>
               <tr><td><code>order_db</code></td><td>Carts/items, orders/item snapshots, amount adjustments, saga/state history, outbox/inbox</td><td>Cart optimistic version; valid states; positive quantities; non-negative money; idempotency key uniqueness.</td></tr>
               <tr><td><code>inventory_db</code></td><td>Stock, reservations, movements, outbox/inbox</td><td>Non-negative quantities; reservation uniqueness; valid expiry/state combinations.</td></tr>
@@ -1299,7 +1298,7 @@ No UNKNOWN transition directly releases inventory.</code></pre>
 
           <h3>Identity flow</h3>
           <ol>
-            <li>Kratos authenticates the user and issues a session token; Hydra issues OAuth2/OIDC tokens only for clients using an OAuth flow.</li>
+            <li>Kratos authenticates the user and issues a session token.</li>
             <li>Edge calls <code>identity-service.ResolveSession</code> over mTLS. Identity verifies the session through Kratos <code>/sessions/whoami</code>.</li>
             <li>Identity signs an audience-bound, short-lived Ed25519 actor assertion. Edge cannot mint or alter it.</li>
             <li>Edge opens gRPC with its workload certificate and forwards the assertion. The target verifies the certificate chain, expected Edge identity, assertion signature, issuer, audience, and expiry.</li>
@@ -1328,8 +1327,7 @@ Order:
           <ul>
             <li>TLS at Traefik and mandatory mTLS for internal gRPC. Private networking is defense in depth, not caller authentication.</li>
             <li>Kratos owns password hashing, recovery, verification, MFA, session lifecycle, and credential policy.</li>
-            <li>Hydra owns refresh-token rotation and OAuth2 token policy when OAuth clients are enabled.</li>
-            <li>Payment card data handled by provider-hosted/tokenized flows; do not store PAN/CVV.</li>
+                        <li>Payment card data handled by provider-hosted/tokenized flows; do not store PAN/CVV.</li>
             <li>Webhook signatures verified against raw request bodies and provider timestamps.</li>
             <li>Secrets injected through Dokploy secrets/environment, never committed.</li>
             <li>Database users limited to their owned database.</li>
@@ -1339,7 +1337,7 @@ Order:
           </ul>
         </article>
         <aside class="margin-column">
-          <p class="margin-note"><strong>Two credential modes.</strong> The current Kratos session flow is resolved by Identity. A future Hydra JWT flow can be validated by Identity with cached JWKS. In both modes, every internal gRPC hop still requires workload mTLS and target-bound actor assertions.</p>
+          <p class="margin-note"><strong>Two identities.</strong> Kratos identifies the user. Workload mTLS identifies the calling service. Identity-issued actor assertions carry the verified user identity to the target service.</p>
         </aside>
       </section>
 
@@ -1431,7 +1429,7 @@ apps/payment-service → apps/order-service/internal/...</code></pre>
           <h3>Daily mode</h3>
           <pre><code>Docker Compose:
   PostgreSQL
-  Ory Kratos + Hydra
+  Ory Kratos
   Kafka or Redpanda       # start when working on async workflow
   Kafka UI (optional)
   Prometheus
@@ -1449,8 +1447,8 @@ Host through Moon + Air:
           <h3>Day-to-day local workflow</h3>
           <ol>
             <li><strong>One-time bootstrap:</strong> install Go, Moon, Air, Buf, Docker/Compose, and a PostgreSQL migration CLI; copy <code>.env.example</code> to an ignored local environment file; create no production secrets locally.</li>
-            <li><strong>Start dependencies:</strong> run the Moon task wrapping <code>docker compose up -d</code>. For protected APIs, start PostgreSQL, Ory Kratos, Ory Hydra, and the active services. Add telemetry and Kafka only when the active slice needs them.</li>
-            <li><strong>Wait for readiness:</strong> verify PostgreSQL plus Kratos/Hydra readiness endpoints, then the active service endpoints. Do not rely only on container “running” state.</li>
+            <li><strong>Start dependencies:</strong> run the Moon task wrapping <code>docker compose up -d</code>. For protected APIs, start PostgreSQL, Ory Kratos, and the active services. Add telemetry and Kafka only when the active slice needs them.</li>
+            <li><strong>Wait for readiness:</strong> verify PostgreSQL and Kratos readiness endpoints, then the active service endpoints. Do not rely only on container “running” state.</li>
             <li><strong>Apply migrations:</strong> run <code>moon run :migrate</code> for the owning modules. Migrations are explicit tasks, never hidden in application startup.</li>
             <li><strong>Generate contracts:</strong> after changing Protobuf, run <code>moon run :generate</code>, then Buf lint/breaking checks. Commit source and generated Go output according to the chosen repository policy.</li>
             <li><strong>Run active services:</strong> use <code>moon run edge-api:dev catalog-service:dev order-service:dev</code>. Moon starts persistent Air tasks; Air rebuilds only the changed service.</li>
@@ -1505,7 +1503,6 @@ moon run infra:reset</code></pre>
             <tbody>
               <tr><td>edge-api HTTP</td><td>8080</td><td>Host/public in production</td></tr>
               <tr><td>Kratos public/admin</td><td>4433 / 4434</td><td>Public self-service / private admin</td></tr>
-              <tr><td>Hydra public/admin</td><td>4444 / 4445</td><td>Public OAuth2 / private admin</td></tr>
               <tr><td>identity-service gRPC</td><td>9081</td><td>Private mTLS; no host port in production</td></tr>
               <tr><td>catalog gRPC</td><td>9083</td><td>Private mTLS</td></tr>
               <tr><td>order gRPC</td><td>9082</td><td>Private mTLS</td></tr>
@@ -1528,11 +1525,11 @@ moon run infra:reset</code></pre>
       <section id="deployment">
         <article class="content">
           <h2><span class="number">14</span>Dokploy and Traefik</h2>
-          <p class="lead">Production exposes Edge plus the required Kratos self-service and Hydra OAuth2 endpoints—and optionally a protected Grafana route. Admin APIs and internal services remain private.</p>
+          <p class="lead">Production exposes Edge plus required Kratos self-service endpoints—and optionally a protected Grafana route. Admin APIs and internal services remain private.</p>
 
           <h3>Routing</h3>
           <pre><code>api.shop.example.com   ──HTTPS──► edge-api:8080
-auth.shop.example.com  ──HTTPS──► kratos:4433 / hydra:4444
+auth.shop.example.com  ──HTTPS──► kratos:4433
 ops.shop.example.com   ──HTTPS──► grafana:3000  # protected, optional
 
 Not routed publicly:
@@ -1622,7 +1619,7 @@ Not routed publicly:
   structured stdout logs collected by Alloy into Loki
 
 Add only with the workflow that needs it:
-  Ory Kratos + Hydra       when protected accounts/OAuth clients are implemented
+  Ory Kratos               when protected accounts are implemented
   Kafka/Redpanda           when durable inventory workflow begins
   inventory-service        with reservations
   payment-service          with provider integration and reconciliation
@@ -1644,10 +1641,10 @@ Add only with the workflow that needs it:
               <p><strong>Goal:</strong> one repeatable repository and local environment where an empty service can be generated, run, observed, tested, and built without inventing new conventions.</p>
               <h4>Implement in order</h4>
               <ol>
-                <li>Write ADRs for boundaries, Ory Kratos/Hydra, internal mTLS, Stripe PaymentIntents, money representation, Order-owned carts/saga, Kafka/Redpanda, and telemetry topology.</li>
+                <li>Write ADRs for boundaries, Ory Kratos, internal mTLS, Stripe PaymentIntents, money representation, Order-owned carts/saga, Kafka/Redpanda, and telemetry topology.</li>
                 <li>Create Moon workspace, <code>go.work</code>, shared Go/Proto tasks, and only <code>edge-api</code>, <code>catalog-service</code>, <code>order-service</code>, <code>common-rpc</code>, and observability modules.</li>
                 <li>Create Buf configuration and initial health/catalog/order Protobuf contracts. Add lint and breaking-change tasks.</li>
-                <li>Create local Compose for PostgreSQL, Ory Kratos, Ory Hydra, and the active observability components. Generate development mTLS certificates; delay Kafka until checkout needs it.</li>
+                <li>Create local Compose for PostgreSQL, Ory Kratos, and the active observability components. Generate development mTLS certificates; delay Kafka until checkout needs it.</li>
                 <li>Create isolated databases/users and explicit migration tasks. Add idempotent local seed tasks.</li>
                 <li>Standardize <code>log/slog</code> JSON, correlation IDs, Prometheus endpoints, OpenTelemetry resource attributes, <code>/live</code>, <code>/ready</code>, graceful shutdown, and Air configuration.</li>
                 <li>Create multi-stage Dockerfiles, CI tasks for format/lint/test/build/Buf checks, and a backup/restore script for local PostgreSQL proof.</li>
@@ -1723,9 +1720,9 @@ Add only with the workflow that needs it:
                 <li>Create separate staging and production Dokploy projects, networks, domains, volumes, credentials, Stripe accounts/keys, Ory projects/clients, an internal certificate authority, and Grafana access.</li>
                 <li>Deploy PostgreSQL and Redpanda/Kafka with persistent storage, resource limits, monitoring, automated backups, and tested restore instructions. Prefer managed equivalents if real revenue exceeds your ability to operate them.</li>
                 <li>Deploy Loki, Grafana, Alloy, Prometheus, Tempo, and OTel Collector privately; expose Grafana only behind strong authentication.</li>
-                <li>Deploy Kratos and Hydra at <code>auth...</code>; keep both admin APIs private; configure redirects, SMTP, MFA, OAuth clients, token policy, backups, and secret rotation.</li>
+                <li>Deploy Kratos at <code>auth...</code>; keep its admin API private; configure redirects, SMTP, MFA, backups, and secret rotation.</li>
                 <li>Run expand migrations as explicit jobs. Deploy consumers before producers when new messages are introduced.</li>
-                <li>Issue short-lived workload certificates, deploy internal services with mandatory mTLS and per-RPC caller policy, then deploy Edge. Publish only Edge, required Kratos/Hydra public endpoints, narrowly routed Stripe webhooks, and protected Grafana.</li>
+                <li>Issue short-lived workload certificates, deploy internal services with mandatory mTLS and per-RPC caller policy, then deploy Edge. Publish only Edge, required Kratos public endpoints, narrowly routed Stripe webhooks, and protected Grafana.</li>
                 <li>Run staging smoke, saga, duplicate, compensation, backup-restore, shutdown, and DLQ replay checks. Then use Stripe live-mode readiness and webhook checks.</li>
                 <li>Start production with low limits and manual observation. Confirm dashboards, SLOs, alerts, reconciliation, refunds, and support/runbook ownership before increasing traffic.</li>
               </ol>
@@ -1779,7 +1776,7 @@ Add only with the workflow that needs it:
               <tr><td>Payment ambiguity</td><td>Unknown/reconciliation states; timeout is never definitive failure</td><td>Proposed</td></tr>
               <tr><td>Reliability objectives</td><td>99.9% order acceptance; 99.5% terminal within 5 minutes; initial RPO ≤15m/RTO ≤4h</td><td>Starting defaults</td></tr>
               <tr><td>Project intent</td><td>Learning architecture built with controls suitable for eventual real transactions</td><td>Confirmed</td></tr>
-              <tr><td>Authentication</td><td>Ory Kratos for identity/session; Hydra for OAuth2/OIDC; Edge authenticates users and services authenticate each other with mTLS</td><td>Confirmed</td></tr>
+              <tr><td>Authentication</td><td>Ory Kratos for identity/session; Identity-issued actor assertions plus workload mTLS for private service calls</td><td>Implemented</td></tr>
               <tr><td>Payment provider</td><td>Stripe PaymentIntents; test mode first, live mode after deployment gates</td><td>Proposed default</td></tr>
               <tr><td>Payment capture</td><td>Immediate capture for MVP; schema supports later authorize-then-capture</td><td>Proposed default</td></tr>
               <tr><td>Inventory location</td><td>One warehouse initially; no multi-location allocation yet</td><td>Confirmed</td></tr>
@@ -1794,7 +1791,7 @@ Add only with the workflow that needs it:
           <h3>Resolved scope and safe defaults</h3>
           <ol>
             <li><strong>Intent:</strong> learning first, but implementation must be capable of controlled real transactions.</li>
-            <li><strong>Identity:</strong> self-hosted Ory Kratos for authentication and Hydra for OAuth2/OIDC. No custom password or token implementation.</li>
+            <li><strong>Identity:</strong> self-hosted Ory Kratos for authentication; Identity issues short-lived internal actor assertions. No custom password implementation.</li>
             <li><strong>Payment:</strong> Stripe PaymentIntents, immediate capture for MVP after inventory reservation. Authorize-then-capture remains a supported later evolution for fulfillment.</li>
             <li><strong>Inventory:</strong> one warehouse initially.</li>
             <li><strong>Commerce scope:</strong> discounts, tax, shipping, and multi-currency are not MVP features, but immutable amount components and adjustments are reserved in the model.</li>
@@ -1835,10 +1832,10 @@ Add only with the workflow that needs it:
 
           <h3>Concrete next steps</h3>
           <ol>
-            <li>Record ADRs for Ory Kratos/Hydra, workload mTLS and certificate rotation, Stripe capture, Order-owned carts, Kafka choice, and initial SLO/RPO/RTO.</li>
+            <li>Record ADRs for Ory Kratos, workload mTLS and certificate rotation, Stripe capture, Order-owned carts, Kafka choice, and initial SLO/RPO/RTO.</li>
             <li>Follow the four implementation phases in order; do not create later services during Setup unless their active slice requires them.</li>
             <li>Define Order saga, Payment, Inventory, and Reservation state machines—including ambiguous payment and late-message transitions.</li>
-            <li>Complete Hydra Authorization Code + PKCE only when needed; copy the implemented Edge → Order mTLS pattern to each internal gRPC boundary with explicit caller ACLs.</li>
+            <li>Copy the implemented Edge → Order mTLS pattern to each internal gRPC boundary with explicit caller ACLs.</li>
             <li>Define separate command and event contracts, topics, keys, consumer groups, deadlines, and result mappings.</li>
             <li>Define atomic multi-SKU reservation SQL and concurrency tests.</li>
             <li>Approve outbox/inbox retention and DLQ ownership/redrive runbooks.</li>

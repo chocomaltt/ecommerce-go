@@ -11,7 +11,6 @@ import (
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
 	ErrInvalidSession     = errors.New("invalid session")
-	ErrNotAuthenticated   = errors.New("not authenticated")
 	ErrInvalidRequest     = errors.New("invalid request")
 )
 
@@ -21,12 +20,11 @@ type User struct {
 }
 type Service struct {
 	kratos     port.KratosService
-	hydra      port.HydraService
 	assertions port.ActorIssuer
 }
 
-func New(kratos port.KratosService, hydra port.HydraService, assertions port.ActorIssuer) *Service {
-	return &Service{kratos: kratos, hydra: hydra, assertions: assertions}
+func New(kratos port.KratosService, assertions port.ActorIssuer) *Service {
+	return &Service{kratos: kratos, assertions: assertions}
 }
 func (s *Service) Register(ctx context.Context, email, password string) (User, string, error) {
 	if err := s.kratos.Register(ctx, email, password); err != nil {
@@ -67,33 +65,6 @@ func (s *Service) Logout(ctx context.Context, token string) error {
 		return ErrInvalidSession
 	}
 	return nil
-}
-func (s *Service) HydraLogin(ctx context.Context, challenge, token string) (string, error) {
-	subject, skip, err := s.hydra.LoginRequest(ctx, challenge)
-	if err != nil {
-		return "", err
-	}
-	if skip {
-		return s.hydra.AcceptLogin(ctx, challenge, subject)
-	}
-	if token == "" {
-		return "", ErrNotAuthenticated
-	}
-	user, err := s.resolve(ctx, token)
-	if err != nil {
-		return "", err
-	}
-	return s.hydra.AcceptLogin(ctx, challenge, user.ID)
-}
-func (s *Service) HydraConsent(ctx context.Context, challenge string) (string, error) {
-	scopes, err := s.hydra.ConsentScopes(ctx, challenge)
-	if err != nil {
-		return "", err
-	}
-	return s.hydra.AcceptConsent(ctx, challenge, scopes)
-}
-func (s *Service) HydraLogout(ctx context.Context, challenge string) (string, error) {
-	return s.hydra.AcceptLogout(ctx, challenge)
 }
 func (s *Service) resolve(ctx context.Context, token string) (User, error) {
 	id, email, err := s.kratos.Whoami(ctx, token)

@@ -19,15 +19,6 @@ func (f fakeKratos) Whoami(context.Context, string) (string, string, error) {
 }
 func (f fakeKratos) Logout(context.Context, string) error { return f.logoutErr }
 
-type fakeHydra struct{}
-
-func (fakeHydra) EnsureClient(context.Context, string, string, []string) error    { return nil }
-func (fakeHydra) LoginRequest(context.Context, string) (string, bool, error)      { return "", false, nil }
-func (fakeHydra) AcceptLogin(context.Context, string, string) (string, error)     { return "", nil }
-func (fakeHydra) ConsentScopes(context.Context, string) ([]string, error)         { return nil, nil }
-func (fakeHydra) AcceptConsent(context.Context, string, []string) (string, error) { return "", nil }
-func (fakeHydra) AcceptLogout(context.Context, string) (string, error)            { return "", nil }
-
 type fakeIssuer struct{ actor port.Actor }
 
 func (f *fakeIssuer) Issue(_ context.Context, actor port.Actor) (string, error) {
@@ -37,7 +28,7 @@ func (f *fakeIssuer) Issue(_ context.Context, actor port.Actor) (string, error) 
 
 func TestResolveSessionIssuesTargetBoundActor(t *testing.T) {
 	issuer := &fakeIssuer{}
-	service := New(fakeKratos{}, fakeHydra{}, issuer)
+	service := New(fakeKratos{}, issuer)
 	user, assertion, err := service.ResolveSession(context.Background(), "session", "order-service")
 	if err != nil {
 		t.Fatal(err)
@@ -51,7 +42,7 @@ func TestResolveSessionIssuesTargetBoundActor(t *testing.T) {
 }
 
 func TestResolveSessionRejectsInvalidSession(t *testing.T) {
-	service := New(fakeKratos{whoamiErr: errors.New("invalid")}, fakeHydra{}, &fakeIssuer{})
+	service := New(fakeKratos{whoamiErr: errors.New("invalid")}, &fakeIssuer{})
 	_, _, err := service.ResolveSession(context.Background(), "session", "order-service")
 	if !errors.Is(err, ErrInvalidSession) {
 		t.Fatalf("got %v", err)

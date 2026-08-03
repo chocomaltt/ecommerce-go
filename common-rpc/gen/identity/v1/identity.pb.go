@@ -465,278 +465,6 @@ func (*LogoutResponse) Descriptor() ([]byte, []int) {
 	return file_identity_v1_identity_proto_rawDescGZIP(), []int{8}
 }
 
-type HydraLoginRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Challenge     string                 `protobuf:"bytes,1,opt,name=challenge,proto3" json:"challenge,omitempty"`
-	SessionToken  string                 `protobuf:"bytes,2,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HydraLoginRequest) Reset() {
-	*x = HydraLoginRequest{}
-	mi := &file_identity_v1_identity_proto_msgTypes[9]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HydraLoginRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HydraLoginRequest) ProtoMessage() {}
-
-func (x *HydraLoginRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_identity_v1_identity_proto_msgTypes[9]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HydraLoginRequest.ProtoReflect.Descriptor instead.
-func (*HydraLoginRequest) Descriptor() ([]byte, []int) {
-	return file_identity_v1_identity_proto_rawDescGZIP(), []int{9}
-}
-
-func (x *HydraLoginRequest) GetChallenge() string {
-	if x != nil {
-		return x.Challenge
-	}
-	return ""
-}
-
-func (x *HydraLoginRequest) GetSessionToken() string {
-	if x != nil {
-		return x.SessionToken
-	}
-	return ""
-}
-
-type HydraLoginResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RedirectUrl   string                 `protobuf:"bytes,1,opt,name=redirect_url,json=redirectUrl,proto3" json:"redirect_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HydraLoginResponse) Reset() {
-	*x = HydraLoginResponse{}
-	mi := &file_identity_v1_identity_proto_msgTypes[10]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HydraLoginResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HydraLoginResponse) ProtoMessage() {}
-
-func (x *HydraLoginResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_identity_v1_identity_proto_msgTypes[10]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HydraLoginResponse.ProtoReflect.Descriptor instead.
-func (*HydraLoginResponse) Descriptor() ([]byte, []int) {
-	return file_identity_v1_identity_proto_rawDescGZIP(), []int{10}
-}
-
-func (x *HydraLoginResponse) GetRedirectUrl() string {
-	if x != nil {
-		return x.RedirectUrl
-	}
-	return ""
-}
-
-type HydraConsentRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Challenge     string                 `protobuf:"bytes,1,opt,name=challenge,proto3" json:"challenge,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HydraConsentRequest) Reset() {
-	*x = HydraConsentRequest{}
-	mi := &file_identity_v1_identity_proto_msgTypes[11]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HydraConsentRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HydraConsentRequest) ProtoMessage() {}
-
-func (x *HydraConsentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_identity_v1_identity_proto_msgTypes[11]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HydraConsentRequest.ProtoReflect.Descriptor instead.
-func (*HydraConsentRequest) Descriptor() ([]byte, []int) {
-	return file_identity_v1_identity_proto_rawDescGZIP(), []int{11}
-}
-
-func (x *HydraConsentRequest) GetChallenge() string {
-	if x != nil {
-		return x.Challenge
-	}
-	return ""
-}
-
-type HydraConsentResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RedirectUrl   string                 `protobuf:"bytes,1,opt,name=redirect_url,json=redirectUrl,proto3" json:"redirect_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HydraConsentResponse) Reset() {
-	*x = HydraConsentResponse{}
-	mi := &file_identity_v1_identity_proto_msgTypes[12]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HydraConsentResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HydraConsentResponse) ProtoMessage() {}
-
-func (x *HydraConsentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_identity_v1_identity_proto_msgTypes[12]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HydraConsentResponse.ProtoReflect.Descriptor instead.
-func (*HydraConsentResponse) Descriptor() ([]byte, []int) {
-	return file_identity_v1_identity_proto_rawDescGZIP(), []int{12}
-}
-
-func (x *HydraConsentResponse) GetRedirectUrl() string {
-	if x != nil {
-		return x.RedirectUrl
-	}
-	return ""
-}
-
-type HydraLogoutRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Challenge     string                 `protobuf:"bytes,1,opt,name=challenge,proto3" json:"challenge,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HydraLogoutRequest) Reset() {
-	*x = HydraLogoutRequest{}
-	mi := &file_identity_v1_identity_proto_msgTypes[13]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HydraLogoutRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HydraLogoutRequest) ProtoMessage() {}
-
-func (x *HydraLogoutRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_identity_v1_identity_proto_msgTypes[13]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HydraLogoutRequest.ProtoReflect.Descriptor instead.
-func (*HydraLogoutRequest) Descriptor() ([]byte, []int) {
-	return file_identity_v1_identity_proto_rawDescGZIP(), []int{13}
-}
-
-func (x *HydraLogoutRequest) GetChallenge() string {
-	if x != nil {
-		return x.Challenge
-	}
-	return ""
-}
-
-type HydraLogoutResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RedirectUrl   string                 `protobuf:"bytes,1,opt,name=redirect_url,json=redirectUrl,proto3" json:"redirect_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *HydraLogoutResponse) Reset() {
-	*x = HydraLogoutResponse{}
-	mi := &file_identity_v1_identity_proto_msgTypes[14]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *HydraLogoutResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*HydraLogoutResponse) ProtoMessage() {}
-
-func (x *HydraLogoutResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_identity_v1_identity_proto_msgTypes[14]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use HydraLogoutResponse.ProtoReflect.Descriptor instead.
-func (*HydraLogoutResponse) Descriptor() ([]byte, []int) {
-	return file_identity_v1_identity_proto_rawDescGZIP(), []int{14}
-}
-
-func (x *HydraLogoutResponse) GetRedirectUrl() string {
-	if x != nil {
-		return x.RedirectUrl
-	}
-	return ""
-}
-
 var File_identity_v1_identity_proto protoreflect.FileDescriptor
 
 const file_identity_v1_identity_proto_rawDesc = "" +
@@ -765,29 +493,12 @@ const file_identity_v1_identity_proto_rawDesc = "" +
 	"\x0factor_assertion\x18\x02 \x01(\tR\x0eactorAssertion\"4\n" +
 	"\rLogoutRequest\x12#\n" +
 	"\rsession_token\x18\x01 \x01(\tR\fsessionToken\"\x10\n" +
-	"\x0eLogoutResponse\"V\n" +
-	"\x11HydraLoginRequest\x12\x1c\n" +
-	"\tchallenge\x18\x01 \x01(\tR\tchallenge\x12#\n" +
-	"\rsession_token\x18\x02 \x01(\tR\fsessionToken\"7\n" +
-	"\x12HydraLoginResponse\x12!\n" +
-	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl\"3\n" +
-	"\x13HydraConsentRequest\x12\x1c\n" +
-	"\tchallenge\x18\x01 \x01(\tR\tchallenge\"9\n" +
-	"\x14HydraConsentResponse\x12!\n" +
-	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl\"2\n" +
-	"\x12HydraLogoutRequest\x12\x1c\n" +
-	"\tchallenge\x18\x01 \x01(\tR\tchallenge\"8\n" +
-	"\x13HydraLogoutResponse\x12!\n" +
-	"\fredirect_url\x18\x01 \x01(\tR\vredirectUrl2\xae\x04\n" +
+	"\x0eLogoutResponse2\xb8\x02\n" +
 	"\x0fIdentityService\x12G\n" +
 	"\bRegister\x12\x1c.identity.v1.RegisterRequest\x1a\x1d.identity.v1.RegisterResponse\x12>\n" +
 	"\x05Login\x12\x19.identity.v1.LoginRequest\x1a\x1a.identity.v1.LoginResponse\x12Y\n" +
 	"\x0eResolveSession\x12\".identity.v1.ResolveSessionRequest\x1a#.identity.v1.ResolveSessionResponse\x12A\n" +
-	"\x06Logout\x12\x1a.identity.v1.LogoutRequest\x1a\x1b.identity.v1.LogoutResponse\x12M\n" +
-	"\n" +
-	"HydraLogin\x12\x1e.identity.v1.HydraLoginRequest\x1a\x1f.identity.v1.HydraLoginResponse\x12S\n" +
-	"\fHydraConsent\x12 .identity.v1.HydraConsentRequest\x1a!.identity.v1.HydraConsentResponse\x12P\n" +
-	"\vHydraLogout\x12\x1f.identity.v1.HydraLogoutRequest\x1a .identity.v1.HydraLogoutResponseBJZHgithub.com/chocomaltt/ecommerce-go/common-rpc/gen/identity/v1;identityv1b\x06proto3"
+	"\x06Logout\x12\x1a.identity.v1.LogoutRequest\x1a\x1b.identity.v1.LogoutResponseBJZHgithub.com/chocomaltt/ecommerce-go/common-rpc/gen/identity/v1;identityv1b\x06proto3"
 
 var (
 	file_identity_v1_identity_proto_rawDescOnce sync.Once
@@ -801,7 +512,7 @@ func file_identity_v1_identity_proto_rawDescGZIP() []byte {
 	return file_identity_v1_identity_proto_rawDescData
 }
 
-var file_identity_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
+var file_identity_v1_identity_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_identity_v1_identity_proto_goTypes = []any{
 	(*User)(nil),                   // 0: identity.v1.User
 	(*RegisterRequest)(nil),        // 1: identity.v1.RegisterRequest
@@ -812,36 +523,24 @@ var file_identity_v1_identity_proto_goTypes = []any{
 	(*ResolveSessionResponse)(nil), // 6: identity.v1.ResolveSessionResponse
 	(*LogoutRequest)(nil),          // 7: identity.v1.LogoutRequest
 	(*LogoutResponse)(nil),         // 8: identity.v1.LogoutResponse
-	(*HydraLoginRequest)(nil),      // 9: identity.v1.HydraLoginRequest
-	(*HydraLoginResponse)(nil),     // 10: identity.v1.HydraLoginResponse
-	(*HydraConsentRequest)(nil),    // 11: identity.v1.HydraConsentRequest
-	(*HydraConsentResponse)(nil),   // 12: identity.v1.HydraConsentResponse
-	(*HydraLogoutRequest)(nil),     // 13: identity.v1.HydraLogoutRequest
-	(*HydraLogoutResponse)(nil),    // 14: identity.v1.HydraLogoutResponse
 }
 var file_identity_v1_identity_proto_depIdxs = []int32{
-	0,  // 0: identity.v1.RegisterResponse.user:type_name -> identity.v1.User
-	0,  // 1: identity.v1.LoginResponse.user:type_name -> identity.v1.User
-	0,  // 2: identity.v1.ResolveSessionResponse.user:type_name -> identity.v1.User
-	1,  // 3: identity.v1.IdentityService.Register:input_type -> identity.v1.RegisterRequest
-	3,  // 4: identity.v1.IdentityService.Login:input_type -> identity.v1.LoginRequest
-	5,  // 5: identity.v1.IdentityService.ResolveSession:input_type -> identity.v1.ResolveSessionRequest
-	7,  // 6: identity.v1.IdentityService.Logout:input_type -> identity.v1.LogoutRequest
-	9,  // 7: identity.v1.IdentityService.HydraLogin:input_type -> identity.v1.HydraLoginRequest
-	11, // 8: identity.v1.IdentityService.HydraConsent:input_type -> identity.v1.HydraConsentRequest
-	13, // 9: identity.v1.IdentityService.HydraLogout:input_type -> identity.v1.HydraLogoutRequest
-	2,  // 10: identity.v1.IdentityService.Register:output_type -> identity.v1.RegisterResponse
-	4,  // 11: identity.v1.IdentityService.Login:output_type -> identity.v1.LoginResponse
-	6,  // 12: identity.v1.IdentityService.ResolveSession:output_type -> identity.v1.ResolveSessionResponse
-	8,  // 13: identity.v1.IdentityService.Logout:output_type -> identity.v1.LogoutResponse
-	10, // 14: identity.v1.IdentityService.HydraLogin:output_type -> identity.v1.HydraLoginResponse
-	12, // 15: identity.v1.IdentityService.HydraConsent:output_type -> identity.v1.HydraConsentResponse
-	14, // 16: identity.v1.IdentityService.HydraLogout:output_type -> identity.v1.HydraLogoutResponse
-	10, // [10:17] is the sub-list for method output_type
-	3,  // [3:10] is the sub-list for method input_type
-	3,  // [3:3] is the sub-list for extension type_name
-	3,  // [3:3] is the sub-list for extension extendee
-	0,  // [0:3] is the sub-list for field type_name
+	0, // 0: identity.v1.RegisterResponse.user:type_name -> identity.v1.User
+	0, // 1: identity.v1.LoginResponse.user:type_name -> identity.v1.User
+	0, // 2: identity.v1.ResolveSessionResponse.user:type_name -> identity.v1.User
+	1, // 3: identity.v1.IdentityService.Register:input_type -> identity.v1.RegisterRequest
+	3, // 4: identity.v1.IdentityService.Login:input_type -> identity.v1.LoginRequest
+	5, // 5: identity.v1.IdentityService.ResolveSession:input_type -> identity.v1.ResolveSessionRequest
+	7, // 6: identity.v1.IdentityService.Logout:input_type -> identity.v1.LogoutRequest
+	2, // 7: identity.v1.IdentityService.Register:output_type -> identity.v1.RegisterResponse
+	4, // 8: identity.v1.IdentityService.Login:output_type -> identity.v1.LoginResponse
+	6, // 9: identity.v1.IdentityService.ResolveSession:output_type -> identity.v1.ResolveSessionResponse
+	8, // 10: identity.v1.IdentityService.Logout:output_type -> identity.v1.LogoutResponse
+	7, // [7:11] is the sub-list for method output_type
+	3, // [3:7] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_identity_v1_identity_proto_init() }
@@ -855,7 +554,7 @@ func file_identity_v1_identity_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_identity_v1_identity_proto_rawDesc), len(file_identity_v1_identity_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   15,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

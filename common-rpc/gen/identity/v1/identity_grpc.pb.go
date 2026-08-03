@@ -23,9 +23,6 @@ const (
 	IdentityService_Login_FullMethodName          = "/identity.v1.IdentityService/Login"
 	IdentityService_ResolveSession_FullMethodName = "/identity.v1.IdentityService/ResolveSession"
 	IdentityService_Logout_FullMethodName         = "/identity.v1.IdentityService/Logout"
-	IdentityService_HydraLogin_FullMethodName     = "/identity.v1.IdentityService/HydraLogin"
-	IdentityService_HydraConsent_FullMethodName   = "/identity.v1.IdentityService/HydraConsent"
-	IdentityService_HydraLogout_FullMethodName    = "/identity.v1.IdentityService/HydraLogout"
 )
 
 // IdentityServiceClient is the client API for IdentityService service.
@@ -36,9 +33,6 @@ type IdentityServiceClient interface {
 	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginResponse, error)
 	ResolveSession(ctx context.Context, in *ResolveSessionRequest, opts ...grpc.CallOption) (*ResolveSessionResponse, error)
 	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*LogoutResponse, error)
-	HydraLogin(ctx context.Context, in *HydraLoginRequest, opts ...grpc.CallOption) (*HydraLoginResponse, error)
-	HydraConsent(ctx context.Context, in *HydraConsentRequest, opts ...grpc.CallOption) (*HydraConsentResponse, error)
-	HydraLogout(ctx context.Context, in *HydraLogoutRequest, opts ...grpc.CallOption) (*HydraLogoutResponse, error)
 }
 
 type identityServiceClient struct {
@@ -89,36 +83,6 @@ func (c *identityServiceClient) Logout(ctx context.Context, in *LogoutRequest, o
 	return out, nil
 }
 
-func (c *identityServiceClient) HydraLogin(ctx context.Context, in *HydraLoginRequest, opts ...grpc.CallOption) (*HydraLoginResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HydraLoginResponse)
-	err := c.cc.Invoke(ctx, IdentityService_HydraLogin_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *identityServiceClient) HydraConsent(ctx context.Context, in *HydraConsentRequest, opts ...grpc.CallOption) (*HydraConsentResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HydraConsentResponse)
-	err := c.cc.Invoke(ctx, IdentityService_HydraConsent_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *identityServiceClient) HydraLogout(ctx context.Context, in *HydraLogoutRequest, opts ...grpc.CallOption) (*HydraLogoutResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(HydraLogoutResponse)
-	err := c.cc.Invoke(ctx, IdentityService_HydraLogout_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // IdentityServiceServer is the server API for IdentityService service.
 // All implementations must embed UnimplementedIdentityServiceServer
 // for forward compatibility.
@@ -127,9 +91,6 @@ type IdentityServiceServer interface {
 	Login(context.Context, *LoginRequest) (*LoginResponse, error)
 	ResolveSession(context.Context, *ResolveSessionRequest) (*ResolveSessionResponse, error)
 	Logout(context.Context, *LogoutRequest) (*LogoutResponse, error)
-	HydraLogin(context.Context, *HydraLoginRequest) (*HydraLoginResponse, error)
-	HydraConsent(context.Context, *HydraConsentRequest) (*HydraConsentResponse, error)
-	HydraLogout(context.Context, *HydraLogoutRequest) (*HydraLogoutResponse, error)
 	mustEmbedUnimplementedIdentityServiceServer()
 }
 
@@ -151,15 +112,6 @@ func (UnimplementedIdentityServiceServer) ResolveSession(context.Context, *Resol
 }
 func (UnimplementedIdentityServiceServer) Logout(context.Context, *LogoutRequest) (*LogoutResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
-}
-func (UnimplementedIdentityServiceServer) HydraLogin(context.Context, *HydraLoginRequest) (*HydraLoginResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method HydraLogin not implemented")
-}
-func (UnimplementedIdentityServiceServer) HydraConsent(context.Context, *HydraConsentRequest) (*HydraConsentResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method HydraConsent not implemented")
-}
-func (UnimplementedIdentityServiceServer) HydraLogout(context.Context, *HydraLogoutRequest) (*HydraLogoutResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method HydraLogout not implemented")
 }
 func (UnimplementedIdentityServiceServer) mustEmbedUnimplementedIdentityServiceServer() {}
 func (UnimplementedIdentityServiceServer) testEmbeddedByValue()                         {}
@@ -254,60 +206,6 @@ func _IdentityService_Logout_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
-func _IdentityService_HydraLogin_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HydraLoginRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IdentityServiceServer).HydraLogin(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: IdentityService_HydraLogin_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IdentityServiceServer).HydraLogin(ctx, req.(*HydraLoginRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _IdentityService_HydraConsent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HydraConsentRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IdentityServiceServer).HydraConsent(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: IdentityService_HydraConsent_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IdentityServiceServer).HydraConsent(ctx, req.(*HydraConsentRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _IdentityService_HydraLogout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HydraLogoutRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(IdentityServiceServer).HydraLogout(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: IdentityService_HydraLogout_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(IdentityServiceServer).HydraLogout(ctx, req.(*HydraLogoutRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // IdentityService_ServiceDesc is the grpc.ServiceDesc for IdentityService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -330,18 +228,6 @@ var IdentityService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Logout",
 			Handler:    _IdentityService_Logout_Handler,
-		},
-		{
-			MethodName: "HydraLogin",
-			Handler:    _IdentityService_HydraLogin_Handler,
-		},
-		{
-			MethodName: "HydraConsent",
-			Handler:    _IdentityService_HydraConsent_Handler,
-		},
-		{
-			MethodName: "HydraLogout",
-			Handler:    _IdentityService_HydraLogout_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

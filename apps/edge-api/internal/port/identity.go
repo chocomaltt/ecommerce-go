@@ -19,7 +19,4 @@ type IdentityService interface {
 	Login(context.Context, string, string) (Authentication, error)
 	ResolveSession(context.Context, string, string) (Session, error)
 	Logout(context.Context, string) error
-	HydraLogin(context.Context, string, string) (string, error)
-	HydraConsent(context.Context, string) (string, error)
-	HydraLogout(context.Context, string) (string, error)
 }
