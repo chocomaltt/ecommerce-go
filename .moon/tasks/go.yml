@@ -1,0 +1,33 @@
+# Tasks inherited by every Go project (all 9 modules).
+inheritedBy:
+  toolchain: 'go'
+
+tasks:
+  build:
+    command: 'go build ./...'
+    inputs:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  test:
+    command: 'go test ./...'
+    inputs:
+      - '**/*.go'
+      - 'go.mod'
+      - 'go.sum'
+  lint:
+    command: 'go vet ./...'
+    inputs:
+      - '**/*.go'
+      - 'go.mod'
+  fmt:
+    command: 'gofmt -l .'
+    inputs:
+      - '**/*.go'
+  # Dev convenience: serve the app locally. Not run in CI.
+  run:
+    command: 'go run .'
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
