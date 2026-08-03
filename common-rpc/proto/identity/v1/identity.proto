@@ -45,37 +45,10 @@ message LogoutRequest {
 
 message LogoutResponse {}
 
-message HydraLoginRequest {
-  string challenge = 1;
-  string session_token = 2;
-}
-
-message HydraLoginResponse {
-  string redirect_url = 1;
-}
-
-message HydraConsentRequest {
-  string challenge = 1;
-}
-
-message HydraConsentResponse {
-  string redirect_url = 1;
-}
-
-message HydraLogoutRequest {
-  string challenge = 1;
-}
-
-message HydraLogoutResponse {
-  string redirect_url = 1;
-}
 
 service IdentityService {
   rpc Register(RegisterRequest) returns (RegisterResponse);
   rpc Login(LoginRequest) returns (LoginResponse);
   rpc ResolveSession(ResolveSessionRequest) returns (ResolveSessionResponse);
   rpc Logout(LogoutRequest) returns (LogoutResponse);
-  rpc HydraLogin(HydraLoginRequest) returns (HydraLoginResponse);
-  rpc HydraConsent(HydraConsentRequest) returns (HydraConsentResponse);
-  rpc HydraLogout(HydraLogoutRequest) returns (HydraLogoutResponse);
 }

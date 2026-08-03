@@ -15,7 +15,6 @@ import (
 
 	"github.com/chocomaltt/ecommerce-go/apps/identity-service/config"
 	"github.com/chocomaltt/ecommerce-go/apps/identity-service/internal/adapter/assertion"
-	"github.com/chocomaltt/ecommerce-go/apps/identity-service/internal/adapter/hydra"
 	"github.com/chocomaltt/ecommerce-go/apps/identity-service/internal/adapter/kratos"
 	grpcinterface "github.com/chocomaltt/ecommerce-go/apps/identity-service/internal/interface/grpc"
 	"github.com/chocomaltt/ecommerce-go/apps/identity-service/internal/usecase/auth"
@@ -31,10 +30,6 @@ func main() {
 	defer stop()
 	httpClient := &http.Client{Timeout: 10 * time.Second}
 	kratosAdapter := &kratos.Adapter{PublicURL: cfg.Kratos.PublicURL, HTTP: httpClient}
-	hydraAdapter := &hydra.Adapter{AdminURL: cfg.Hydra.AdminURL, HTTP: httpClient}
-	if err := hydraAdapter.EnsureClient(ctx, cfg.Hydra.ClientID, cfg.Hydra.ClientSecret, cfg.Hydra.RedirectURIs); err != nil {
-		log.WithError(err).Fatal("bootstrap hydra client")
-	}
 	issuer, err := assertion.New(cfg.Actor.PrivateKeyFile, cfg.Actor.Issuer, time.Duration(cfg.Actor.TTLSeconds)*time.Second)
 	if err != nil {
 		log.Fatal(err)
@@ -48,7 +43,7 @@ func main() {
 		log.Fatal(err)
 	}
 	server := grpc.NewServer(grpc.Creds(creds), grpc.UnaryInterceptor(grpcinterface.AuthorizeCaller(cfg.GRPC.TrustedCaller)))
-	identityServer := grpcinterface.New(auth.New(kratosAdapter, hydraAdapter, issuer))
+	identityServer := grpcinterface.New(auth.New(kratosAdapter, issuer))
 	identityv1.RegisterIdentityServiceServer(server, identityServer)
 	go func() {
 		<-ctx.Done()

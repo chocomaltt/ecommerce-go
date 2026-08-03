@@ -1,4 +1,4 @@
-# Local development infrastructure: PostgreSQL + Ory Hydra (OAuth2/OIDC) + Ory Kratos (users).
+# Local development infrastructure: PostgreSQL + Ory Kratos (users).
 # identity-service owns Ory orchestration; Edge and all app services run separately
 # during local development and communicate with it through private mTLS gRPC.
 
@@ -23,24 +23,6 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data:rw
       - ./initdb:/docker-entrypoint-initdb.d:ro
-
-  hydra:
-    image: oryd/hydra:v26.2.0
-    restart: unless-stopped
-    entrypoint: ["sh", "-c"]
-    command:
-      - hydra migrate sql "postgres://postgres:postgres@postgres:5432/hydra?sslmode=disable" --yes && hydra serve all -c /etc/config/hydra/hydra.yml --dev
-    ports:
-      - "4444:4444" # public: OAuth2 endpoints
-      - "4445:4445" # admin: client/introspection API
-    volumes:
-      - ./hydra:/etc/config/hydra
-    depends_on:
-      postgres:
-        condition: service_healthy
-    # edge-api runs on the host -> reachable from containers
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   kratos:
     image: oryd/kratos:v26.2.0

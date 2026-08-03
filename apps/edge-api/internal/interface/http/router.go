@@ -19,8 +19,5 @@ func New(identity port.IdentityService, authMW *middleware.AuthMiddleware, order
 	g.POST("/logout", authMW.EnsureAuthenticated(), h.Logout)
 	g.GET("/me", authMW.EnsureAuthenticated(), h.Me)
 	g.GET("/order-caller", authMW.EnsureAuthenticated(), h.OrderCaller)
-	g.GET("/hydra/login", h.HydraLogin)
-	g.GET("/hydra/consent", h.HydraConsent)
-	g.GET("/hydra/logout", h.HydraLogout)
 	return r
 }

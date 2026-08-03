@@ -50,33 +50,12 @@ func (s *Server) Logout(ctx context.Context, req *identityv1.LogoutRequest) (*id
 	}
 	return &identityv1.LogoutResponse{}, nil
 }
-func (s *Server) HydraLogin(ctx context.Context, req *identityv1.HydraLoginRequest) (*identityv1.HydraLoginResponse, error) {
-	redirect, err := s.auth.HydraLogin(ctx, req.Challenge, req.SessionToken)
-	if err != nil {
-		return nil, toStatus(err)
-	}
-	return &identityv1.HydraLoginResponse{RedirectUrl: redirect}, nil
-}
-func (s *Server) HydraConsent(ctx context.Context, req *identityv1.HydraConsentRequest) (*identityv1.HydraConsentResponse, error) {
-	redirect, err := s.auth.HydraConsent(ctx, req.Challenge)
-	if err != nil {
-		return nil, toStatus(err)
-	}
-	return &identityv1.HydraConsentResponse{RedirectUrl: redirect}, nil
-}
-func (s *Server) HydraLogout(ctx context.Context, req *identityv1.HydraLogoutRequest) (*identityv1.HydraLogoutResponse, error) {
-	redirect, err := s.auth.HydraLogout(ctx, req.Challenge)
-	if err != nil {
-		return nil, toStatus(err)
-	}
-	return &identityv1.HydraLogoutResponse{RedirectUrl: redirect}, nil
-}
 func userProto(user auth.User) *identityv1.User {
 	return &identityv1.User{Id: user.ID, Email: user.Email}
 }
 func toStatus(err error) error {
 	switch err {
-	case auth.ErrInvalidCredentials, auth.ErrInvalidSession, auth.ErrNotAuthenticated:
+	case auth.ErrInvalidCredentials, auth.ErrInvalidSession:
 		return status.Error(codes.Unauthenticated, "authentication failed")
 	case auth.ErrInvalidRequest:
 		return status.Error(codes.InvalidArgument, err.Error())

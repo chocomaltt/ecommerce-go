@@ -2,8 +2,6 @@
 package handler
 
 import (
-	"net/http"
-
 	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/interface/http/middleware"
 	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/interface/http/response"
 	"github.com/chocomaltt/ecommerce-go/apps/edge-api/internal/port"
@@ -95,45 +93,5 @@ func (h *AuthHandler) OrderCaller(c *gin.Context) {
 		return
 	}
 	response.OK(c, "authenticated gRPC caller", gin.H{"user_id": caller.UserID, "email": caller.Email, "caller_service": caller.Service})
-}
-func (h *AuthHandler) HydraLogin(c *gin.Context) {
-	challenge := c.Query("login_challenge")
-	if challenge == "" {
-		response.BadRequest(c, "invalid request", nil)
-		return
-	}
-	token, _ := middleware.Token(c)
-	redirect, err := h.identity.HydraLogin(c.Request.Context(), challenge, token)
-	if err != nil {
-		response.Unauthorized(c, "unauthorized", nil)
-		return
-	}
-	c.Redirect(http.StatusFound, redirect)
-}
-func (h *AuthHandler) HydraConsent(c *gin.Context) {
-	challenge := c.Query("consent_challenge")
-	if challenge == "" {
-		response.BadRequest(c, "invalid request", nil)
-		return
-	}
-	redirect, err := h.identity.HydraConsent(c.Request.Context(), challenge)
-	if err != nil {
-		response.InternalServerError(c, err)
-		return
-	}
-	c.Redirect(http.StatusFound, redirect)
-}
-func (h *AuthHandler) HydraLogout(c *gin.Context) {
-	challenge := c.Query("logout_challenge")
-	if challenge == "" {
-		response.BadRequest(c, "invalid request", nil)
-		return
-	}
-	redirect, err := h.identity.HydraLogout(c.Request.Context(), challenge)
-	if err != nil {
-		response.InternalServerError(c, err)
-		return
-	}
-	c.Redirect(http.StatusFound, redirect)
 }
 func toUser(user port.User) userResponse { return userResponse{ID: user.ID, Email: user.Email} }

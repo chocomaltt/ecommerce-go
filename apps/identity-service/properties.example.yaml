@@ -8,12 +8,6 @@ grpc:
 kratos:
   public_url: http://localhost:4433
 
-hydra:
-  admin_url: http://localhost:4445
-  client_id: edge-api
-  client_secret: change-me
-  redirect_uris:
-    - http://localhost:8080/auth/callback
 
 actor:
   issuer: identity-service

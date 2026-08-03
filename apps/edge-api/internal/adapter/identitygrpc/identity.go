@@ -59,27 +59,6 @@ func (c *Client) Logout(ctx context.Context, token string) error {
 	}
 	return nil
 }
-func (c *Client) HydraLogin(ctx context.Context, challenge, token string) (string, error) {
-	out, err := c.service.HydraLogin(ctx, &identityv1.HydraLoginRequest{Challenge: challenge, SessionToken: token})
-	if err != nil {
-		return "", fmt.Errorf("hydra login: %w", err)
-	}
-	return out.RedirectUrl, nil
-}
-func (c *Client) HydraConsent(ctx context.Context, challenge string) (string, error) {
-	out, err := c.service.HydraConsent(ctx, &identityv1.HydraConsentRequest{Challenge: challenge})
-	if err != nil {
-		return "", fmt.Errorf("hydra consent: %w", err)
-	}
-	return out.RedirectUrl, nil
-}
-func (c *Client) HydraLogout(ctx context.Context, challenge string) (string, error) {
-	out, err := c.service.HydraLogout(ctx, &identityv1.HydraLogoutRequest{Challenge: challenge})
-	if err != nil {
-		return "", fmt.Errorf("hydra logout: %w", err)
-	}
-	return out.RedirectUrl, nil
-}
 func authentication(u *identityv1.User, token string) port.Authentication {
 	return port.Authentication{User: user(u), SessionToken: token}
 }
