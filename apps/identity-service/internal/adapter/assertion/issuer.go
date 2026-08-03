@@ -21,6 +21,7 @@ type Issuer struct {
 	issuer     string
 	ttl        time.Duration
 }
+
 type claims struct {
 	Subject   string `json:"sub"`
 	Email     string `json:"email"`
@@ -36,20 +37,29 @@ func New(privateKeyFile, issuer string, ttl time.Duration) (*Issuer, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read actor private key: %w", err)
 	}
+
 	block, _ := pem.Decode(raw)
 	if block == nil {
 		return nil, fmt.Errorf("decode actor private key PEM")
 	}
+
 	parsed, err := x509.ParsePKCS8PrivateKey(block.Bytes)
 	if err != nil {
 		return nil, fmt.Errorf("parse actor private key: %w", err)
 	}
+
 	key, ok := parsed.(ed25519.PrivateKey)
 	if !ok {
 		return nil, fmt.Errorf("actor private key is not Ed25519")
 	}
-	return &Issuer{privateKey: key, issuer: issuer, ttl: ttl}, nil
+
+	return &Issuer{
+		privateKey: key,
+		issuer:     issuer,
+		ttl:        ttl,
+	}, nil
 }
+
 func (i *Issuer) Issue(ctx context.Context, actor port.Actor) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", err
@@ -57,17 +67,30 @@ func (i *Issuer) Issue(ctx context.Context, actor port.Actor) (string, error) {
 	if actor.Subject == "" || actor.Audience == "" {
 		return "", fmt.Errorf("actor subject and audience are required")
 	}
+
 	now := time.Now()
 	id := make([]byte, 16)
 	if _, err := rand.Read(id); err != nil {
 		return "", fmt.Errorf("generate assertion id: %w", err)
 	}
+
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"EdDSA","typ":"JWT"}`))
-	payload, err := json.Marshal(claims{Subject: actor.Subject, Email: actor.Email, Audience: actor.Audience, Issuer: i.issuer, IssuedAt: now.Unix(), ExpiresAt: now.Add(i.ttl).Unix(), ID: base64.RawURLEncoding.EncodeToString(id)})
+	payload, err := json.Marshal(claims{
+		Subject:   actor.Subject,
+		Email:     actor.Email,
+		Audience:  actor.Audience,
+		Issuer:    i.issuer,
+		IssuedAt:  now.Unix(),
+		ExpiresAt: now.Add(i.ttl).Unix(),
+		ID:        base64.RawURLEncoding.EncodeToString(id),
+	})
 	if err != nil {
 		return "", fmt.Errorf("encode assertion: %w", err)
 	}
+
 	body := base64.RawURLEncoding.EncodeToString(payload)
-	signature := ed25519.Sign(i.privateKey, []byte(header+"."+body))
-	return header + "." + body + "." + base64.RawURLEncoding.EncodeToString(signature), nil
+	signedPayload := header + "." + body
+	signature := ed25519.Sign(i.privateKey, []byte(signedPayload))
+
+	return signedPayload + "." + base64.RawURLEncoding.EncodeToString(signature), nil
 }
