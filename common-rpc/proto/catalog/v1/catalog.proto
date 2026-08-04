@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package catalog.v1;
+
+import "google/type/money.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/field_mask.proto";
+
+option go_package = "github.com/chocomaltt/ecommerce-go/common-rpc/gen/catalog/v1;catalogv1";
+
+message Product {
+    string id = 1;
+    string name = 2;
+    string desc = 3;
+    repeated string img_url = 4;
+    google.type.Money price = 5;
+    int32 stock = 6;
+    string category_id = 7;
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+}
+
+message Category {
+    string id = 1;
+    string name = 2;
+}
+
+message AddProductRequest{
+    Product product = 1;
+}
+
+message AddProductResponse {
+    Product product = 1;
+}
+
+message GetProductRequest{
+    string id = 1;
+}
+
+message GetProductResponse {
+    Product product = 1;
+}
+
+message ListProductRequest {
+    map<string, string> filters = 1;
+    optional string sort_by = 2;
+}
+
+message ListProductResponse{
+    repeated Product product = 1;
+}
+
+message UpdateProductRequest {
+    Product update_properties = 1;
+    google.protobuf.FieldMask update_mask = 2;
+}
+
+message UpdateProductResponse {
+    Product product = 1;
+}
+
+service CatalogService {
+    rpc AddProduct(AddProductRequest) returns (AddProductResponse);
+    rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+    rpc ListProduct(ListProductRequest) returns (ListProductResponse);
+    rpc UpdateProduct(UpdateProductRequest) returns (UpdateProductResponse);
+}
